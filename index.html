@@ -323,6 +323,7 @@ async function apiGet(params) {
   return r.json();
 }
 async function apiPost(action, data, noReload) {
+  // данные из журнала после действия применяем, только если это последнее действие в очереди — иначе мигает
   const token = Math.random().toString(36).slice(2) + Date.now();
   const u = S.cfg.url + (S.cfg.url.includes('?') ? '&' : '?') + qs({ key: S.cfg.key, token });
   let j = null;
@@ -335,11 +336,13 @@ async function apiPost(action, data, noReload) {
     const c = await apiGet({ token }).catch(() => null);
     j = c && c.ok ? { ok: true, msg: 'Готово' } : { ok: false, error: (c && c.error) || (j && j.error) || 'Нет связи с журналом' };
     if (!noReload) await load(true);
-  } else if (j.snapshot && j.snapshot.ok) setData(j.snapshot);
+    else if (!queue.length) load(true);
+  } else if (j.snapshot && j.snapshot.ok && !queue.length) setData(j.snapshot);
   return j;
 }
-async function load() {
+async function load(force) {
   if (!S.cfg.url || !S.cfg.key) return show('setup');
+  if (running && !force) return;          // идут действия — не перетирать экран старыми данными
   spin(true);
   try {
     const j = await apiGet({ action: 'snapshot' });
@@ -349,7 +352,11 @@ async function load() {
     err('Не удалось получить данные: ' + e.message + (S.data ? '. Показаны сохранённые.' : ''));
   } finally { spin(false); }
 }
-function setData(d) { S.data = d; store.set('journal.snap', d); render(); }
+function setData(d) {
+  if (d.lite && S.data) { d.closed = S.data.closed; d.expenses = S.data.expenses; }   // история не менялась — берём прежнюю
+  if (!d.closed) d.closed = []; if (!d.expenses) d.expenses = [];
+  S.data = d; store.set('journal.snap', d); render();
+}
 
 // ------------------------------------------------------------------ вид
 const TITLES = { open: 'Открытые', orders: 'Заявки', calc: 'Расчёт', stats: 'Итоги', setup: 'Настройки' };
@@ -362,7 +369,7 @@ function show(v) {
   if (v === 'setup') { $('cUrl').value = S.cfg.url; $('cKey').value = S.cfg.key; }
   if (v === 'calc' && !$('calcFrame').src) $('calcFrame').src = 'calc.html';
   if (v === 'stats') renderStats();
-  if ((v === 'open' || v === 'orders') && S.data && Date.now() - new Date(S.data.at) > 15000) load(true);
+  if ((v === 'open' || v === 'orders') && S.data && Date.now() - new Date(S.data.at) > 15000) load();
   window.scrollTo(0, 0);
 }
 function err(t) { $('error').textContent = t; $('error').classList.toggle('hidden', !t); }
@@ -556,20 +563,50 @@ function positionSheet(g) {
   };
 }
 
-/** Несколько действий подряд (позиция из нескольких сделок). Ошибка — остановка с понятным сообщением. */
-async function runSteps(btn, steps) {
-  btn.disabled = true;
-  let done = 0, last = '';
-  for (const [action, data] of steps) {
-    say(steps.length > 1 ? 'Отправляю ' + (done + 1) + ' из ' + steps.length + '…' : 'Отправляю…', 'muted');
-    const j = await apiPost(action, data, done < steps.length - 1);
-    if (!j.ok) { btn.disabled = false; say('✗ ' + j.error + (done ? ' (выполнено ' + done + ' из ' + steps.length + ')' : '')); if (done) load(); return; }
-    done++; last = j.msg;
+/** Как изменение выглядит на экране сразу, ещё до ответа журнала. */
+function optimistic(action, d) {
+  const D = S.data, id = String(d.id);
+  if (action === 'cancel' || action === 'fill') D.orders = D.orders.filter(o => String(o.id) !== id);
+  if (action === 'fill') {
+    const o = S.data._lastOrder;
+    if (o) D.open.push({ id: o.id, ticker: o.ticker, side: o.side, qty: d.qty, entry: d.price, price: d.price, sl: o.sl, tp: o.tp,
+      pnl: 0, stop: null, risk: 0, margin: 0, opened: new Date().toISOString(), strategy: o.strategy, _pending: true });
   }
-  btn.disabled = false; closeSheet(); toast(steps.length > 1 ? 'Готово: ' + steps.length + ' сд.' : (last || 'Готово'));
+  if (action === 'close') D.open = D.open.map(p => String(p.id) !== id ? p : p.qty - d.qty > 0 ? Object.assign({}, p, {
+    qty: p.qty - d.qty, pnl: p.pnl * (p.qty - d.qty) / p.qty, stop: p.stop == null ? null : p.stop * (p.qty - d.qty) / p.qty }) : null).filter(Boolean);
+  if (action === 'edit') D.open = D.open.map(p => String(p.id) !== id ? p : Object.assign({}, p,
+    'sl' in d ? { sl: d.sl === '' ? null : num(d.sl) } : {}, 'tp' in d ? { tp: d.tp === '' ? null : num(d.tp) } : {}));
+}
+const queue = [];
+let running = false;
+/** Действия уходят в журнал в фоне по очереди; экран меняется сразу. Ошибка — сообщение и данные из журнала. */
+function runSteps(btn, steps) {
+  closeSheet();
+  const backup = JSON.stringify(S.data);
+  steps.forEach(([a, d]) => optimistic(a, d));
+  render();
+  queue.push({ steps, backup });
+  toast(steps.length > 1 ? 'Отправляю ' + steps.length + ' сд. в журнал…' : 'Отправляю в журнал…');
+  drain();
+}
+async function drain() {
+  if (running) return; running = true; spin(true);
+  while (queue.length) {
+    const { steps, backup } = queue.shift();
+    let done = 0, fail = null, last = '';
+    for (const [action, data] of steps) {
+      const j = await apiPost(action, data, true);
+      if (!j.ok) { fail = j.error; break; }
+      done++; last = j.msg;
+    }
+    if (fail) { if (!done) { S.data = JSON.parse(backup); render(); } toast('✗ ' + fail + (done ? ' · выполнено ' + done + ' из ' + steps.length : '')); await load(true); }
+    else toast('✓ ' + (steps.length > 1 ? 'Готово: ' + steps.length + ' сд.' : (last || 'Готово')));
+  }
+  running = false; spin(false);
 }
 
 function fillSheet(o) {
+  S.data._lastOrder = o;
   openSheet(`
     <h3>${esc(o.ticker)} ${sideTag(o.side)} <span class="q">заявка #${o.id}</span></h3>
     <div class="sub">Перенос в «Открытые»</div>

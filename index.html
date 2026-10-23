@@ -113,6 +113,7 @@ label.f{display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercas
 input,textarea{width:100%;height:40px;padding:0 12px;background:var(--well);color:var(--text);border:1px solid transparent;border-radius:12px;box-shadow:var(--inset);font:16px var(--mono)}
 textarea{height:auto;min-height:56px;padding:8px 12px;font:15px var(--sans);resize:vertical}
 input:focus,textarea:focus{outline:none;border-color:rgba(var(--o-rgb),calc(.55*var(--gk)))}
+input[type=datetime-local]{font-size:14px;color:var(--muted)}
 .fr{display:flex;gap:10px;margin-bottom:10px}.fr>div{flex:1;min-width:0}
 .inl{display:flex;gap:6px}.inl input{flex:1;min-width:0}
 
@@ -146,6 +147,8 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
 .parts{border:1px solid var(--line);border-radius:14px;margin:6px 0 0;overflow:hidden}
 .parts .row{cursor:pointer}
 .msg{font-size:12px;margin-top:8px;min-height:16px}
+.quiet{font:11px var(--mono);color:var(--dim);margin:-2px 0 12px;cursor:pointer}
+.quiet u{text-decoration:none;color:var(--muted);border-bottom:1px dotted var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(var(--bot) + 84px);transform:translate(-50%,20px);z-index:40;opacity:0;transition:all .25s;pointer-events:none;
   background:rgba(25,26,30,.95);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:12px;box-shadow:0 10px 30px rgba(0,0,0,.6);max-width:90vw;text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0)}
@@ -497,7 +500,7 @@ function say(t, c) { $('sMsg').textContent = t; $('sMsg').className = 'msg ' + (
 function dealRow(p, t) {
   const safe = p.stop != null && p.stop >= 0;
   return `<div class="row${safe ? ' safe' : ''}" data-pid="${p.id}">
-      <div class="l1"><span class="q" style="color:var(--text)">${p.qty}</span><span class="q">по ${fp(p.entry, t)}</span><span class="q">#${p.id}</span>
+      <div class="l1"><span class="q" style="color:var(--text)">${p.qty}</span><span class="q">по ${fp(p.entry, t)}</span>
         <span class="v ${p.price == null ? 'muted' : 'glow ' + cls(p.pnl)}">${p.price == null ? 'нет цены' : rub(p.pnl, true)}</span></div>
       <div class="l2">
         <div><span>стоп</span>${p.sl == null ? '<b class="neg">нет</b>' : fp(p.sl, t)}</div>
@@ -533,31 +536,33 @@ function positionSheet(g) {
 const backLink = g => g ? `<button class="btn xs" id="back" style="margin-bottom:10px">‹ Позиция ${esc(g.ticker)}</button>` : '';
 function bindBack(g) { if (g) $('back').onclick = () => positionSheet(g); }
 
-/** Одна сделка: стоп/тейк и закрытие на одном экране, без переключателей. */
+/** Одна сделка: главное — закрыть (цена, объём, заметка); время и стоп/тейк свёрнуты в тихие строки. */
 function dealSheet(p, g) {
-  const t = p.ticker, pnlOf = pnlOfFn(t, p.side);
+  const t = p.ticker, pnlOf = pnlOfFn(t, p.side), now = mskNow();
   openSheet(`
     ${backLink(g)}
-    ${sheetHead(t, p.side, p.qty, `<span class="q">#${p.id}</span>`)}
+    ${sheetHead(t, p.side, p.qty)}
     <div class="sub">вход ${fp(p.entry, t)} · ${dm(p.opened)}${p.strategy ? ' · ' + esc(p.strategy) : ''} · сейчас <span class="${cls(p.pnl)}">${rub(p.pnl, true)}</span></div>
-    <div class="lbl" style="margin-bottom:6px">Стоп и тейк</div>
     <div class="fr">
-      <div><input id="eSl" inputmode="decimal" value="${p.sl ?? ''}" placeholder="стоп"></div>
-      <div><input id="eTp" inputmode="decimal" value="${p.tp ?? ''}" placeholder="тейк"></div>
+      <div><label class="f">Цена выхода</label><input id="xPrice" inputmode="decimal" value="${p.price ?? ''}"></div>
+      <div><label class="f">Объём из ${p.qty}</label><div class="inl"><input id="xQty" inputmode="numeric" value="${p.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;margin:-2px 0 14px">
-      <button class="btn xs" id="eBe">В безубыток</button><span class="q">по стопу <b id="ev" style="font-weight:500">—</b></span>
-      <button class="btn xs green" id="eGo" style="margin-left:auto">Сохранить</button>
-    </div>
-    <div class="lbl" style="margin-bottom:6px">Закрыть сделку</div>
-    <div class="fr">
-      <div><input id="xPrice" inputmode="decimal" value="${p.price ?? ''}" placeholder="цена выхода"></div>
-      <div><div class="inl"><input id="xQty" inputmode="numeric" value="${p.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
-    </div>
-    <div class="fr"><div><input id="xTime" type="datetime-local" value="${mskNow()}"></div></div>
     <div class="fr"><div><textarea id="xNote" rows="1" placeholder="заметка"></textarea></div></div>
+    <div class="quiet" id="tLine">время ${now.slice(8, 10)}.${now.slice(5, 7)} ${now.slice(11)} МСК · <u>изменить</u></div>
+    <div class="fr hidden" id="tBox"><div><input id="xTime" type="datetime-local" value="${now}"></div></div>
     <button class="btn primary wide" id="xGo">Закрыть · <span id="pv">—</span></button>
-    <div class="msg" id="sMsg"></div>`);
+    <div class="msg" id="sMsg"></div>
+    <div class="quiet" id="eLine" style="margin-top:4px">стоп ${p.sl == null ? 'нет' : fp(p.sl, t)} · тейк ${fp(p.tp, t)} · по стопу <span class="${cls(p.stop)}">${p.stop == null ? '—' : rub(p.stop, true)}</span> · <u>изменить</u></div>
+    <div class="hidden" id="eBox" style="margin-top:8px">
+      <div class="fr">
+        <div><label class="f">Стоп</label><input id="eSl" inputmode="decimal" value="${p.sl ?? ''}"></div>
+        <div><label class="f">Тейк</label><input id="eTp" inputmode="decimal" value="${p.tp ?? ''}"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn xs" id="eBe">В безубыток</button><span class="q">по стопу <b id="ev" style="font-weight:500">—</b></span>
+        <button class="btn xs green" id="eGo" style="margin-left:auto">Сохранить</button>
+      </div>
+    </div>`);
   bindBack(g);
   const upd = () => { const v = pnlOf(p, num($('xPrice').value), Math.min(num($('xQty').value), p.qty)); $('pv').textContent = isFinite(v) ? rub(v, true) : '—'; };
   const updE = () => { const sl = num($('eSl').value), v = isFinite(sl) ? pnlOf(p, sl, p.qty) : NaN;
@@ -565,6 +570,8 @@ function dealSheet(p, g) {
   ['xPrice', 'xQty'].forEach(id => $(id).oninput = upd); $('eSl').oninput = updE;
   $('xHalf').onclick = () => { $('xQty').value = Math.max(1, Math.floor(p.qty / 2)); upd(); };
   $('eBe').onclick = () => { $('eSl').value = p.entry; updE(); };
+  $('tLine').onclick = () => { $('tLine').classList.add('hidden'); $('tBox').classList.remove('hidden'); };
+  $('eLine').onclick = () => { $('eLine').classList.add('hidden'); $('eBox').classList.remove('hidden'); };
   upd(); updE();
   $('xGo').onclick = () => {
     const price = num($('xPrice').value), q = num($('xQty').value);
@@ -585,11 +592,13 @@ function groupCloseSheet(g) {
       <div><label class="f">Цена выхода</label><input id="xPrice" inputmode="decimal" value="${g.price ?? ''}"></div>
       <div><label class="f">Объём</label><div class="inl"><input id="xQty" inputmode="numeric" value="${g.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
     </div>
-    <div class="fr"><div><input id="xTime" type="datetime-local" value="${mskNow()}"></div></div>
     <div class="fr"><div><textarea id="xNote" rows="1" placeholder="заметка"></textarea></div></div>
+    <div class="quiet" id="tLine">время ${mskNow().slice(8, 10)}.${mskNow().slice(5, 7)} ${mskNow().slice(11)} МСК · <u>изменить</u></div>
+    <div class="fr hidden" id="tBox"><div><input id="xTime" type="datetime-local" value="${mskNow()}"></div></div>
     <button class="btn primary wide" id="xGo">Закрыть · <span id="pv">—</span></button>
     <div class="msg" id="sMsg"></div>`);
   bindBack(g);
+  $('tLine').onclick = () => { $('tLine').classList.add('hidden'); $('tBox').classList.remove('hidden'); };
   const upd = () => { const x = num($('xPrice').value), q = Math.min(num($('xQty').value), g.qty);
     const v = allocate(g.parts, q).reduce((s, [p, n]) => s + pnlOf(p, x, n), 0); $('pv').textContent = isFinite(v) ? rub(v, true) : '—'; };
   ['xPrice', 'xQty'].forEach(id => $(id).oninput = upd);

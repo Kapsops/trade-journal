@@ -270,7 +270,7 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
     </div>
     </div>
 
-    <div class="sect"><h2>Тема</h2></div>
+    <div class="sect"><h2>Тема</h2><span>версия 23.10 · 9</span></div>
     <div class="panel pad">
       <div class="seg" id="theme" style="margin:0"><button data-t="mono">Монохром</button><button data-t="emerald">Приглушённая</button><button data-t="neon">Неон</button></div>
     </div>
@@ -1030,7 +1030,12 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && S.
 window.addEventListener('message', e => { if (e.origin === location.origin && e.data === 'order-sent') load(); });   // калькулятор отправил заявку
 
 // ------------------------------------------------------------------ старт
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
+  // новая версия приложения взяла управление — перезагрузиться один раз, чтобы сразу показать её
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded && navigator.serviceWorker.controller) { reloaded = true; location.reload(); } });
+}
 render();
 if (!S.cfg.url || !S.cfg.key) show('setup');
 else { saveCfg(); show(S.view === 'setup' ? 'open' : S.view); load(); }

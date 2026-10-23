@@ -192,7 +192,8 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
   <section id="v-setup" class="hidden">
     <div class="panel pad">
       <div class="lbl">Подключение к журналу</div>
-      <p class="muted" style="font-size:12px;margin:6px 0 12px">В Таблице: <b>Журнал → Калькулятор: ссылка и ключ</b>. Скопируйте оба значения сюда. Хранятся только на этом устройстве.</p>
+      <p class="muted" style="font-size:12px;margin:6px 0 10px">Скопируйте ссылку для настройки (ту, что с <b>#u=…&amp;k=…</b>) и нажмите кнопку ниже. Или вставьте адрес и ключ вручную: они в Таблице, <b>Журнал → Калькулятор: ссылка и ключ</b>. Хранятся только на этом устройстве.</p>
+      <button class="btn green wide" id="cPaste" style="margin-bottom:12px">Вставить ссылку из буфера</button>
       <label class="f">Адрес веб-приложения</label>
       <div class="fr"><div><input id="cUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" autocapitalize="off" spellcheck="false"></div></div>
       <label class="f">Ключ доступа</label>
@@ -733,7 +734,23 @@ $('hFilter').onclick = e => { const b = e.target.closest('button'); if (!b) retu
   $('hFilter').querySelectorAll('button').forEach(z => z.classList.toggle('on', z === b)); renderHist(); };
 $('hSearch').oninput = () => { S.hLimit = 40; renderHist(); };
 $('hMore').onclick = () => { S.hLimit += 60; renderHist(); };
+/** Из ссылки настройки (…#u=…&k=…) достаёт адрес и ключ. Можно вставить её и в поле адреса. */
+function parseSetup(t) {
+  t = String(t || '').trim();
+  const i = t.indexOf('#'); if (i < 0) return null;
+  const h = new URLSearchParams(t.slice(i + 1));
+  return h.get('u') && h.get('k') ? { url: h.get('u'), key: h.get('k') } : null;
+}
+$('cPaste').onclick = async () => {
+  let t = '';
+  try { t = await navigator.clipboard.readText(); } catch (e) { $('cMsg').textContent = 'Нет доступа к буферу — вставьте ссылку в поле адреса'; $('cMsg').className = 'msg neg'; return; }
+  const c = parseSetup(t);
+  if (!c) { $('cMsg').textContent = 'В буфере нет ссылки настройки'; $('cMsg').className = 'msg neg'; return; }
+  $('cUrl').value = c.url; $('cKey').value = c.key; $('cSave').click();
+};
 $('cSave').onclick = async () => {
+  const c = parseSetup($('cUrl').value);
+  if (c) { $('cUrl').value = c.url; $('cKey').value = c.key; }
   S.cfg = { url: $('cUrl').value.trim(), key: $('cKey').value.trim() };
   saveCfg();
   $('cMsg').textContent = 'Проверяю…'; $('cMsg').className = 'msg muted';

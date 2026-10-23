@@ -94,6 +94,9 @@ header h1{font-size:11px;font-weight:600;margin:0;flex:1;letter-spacing:.3em;tex
 .l2{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:5px}
 .l2 div{min-width:0;font:10px/1.2 var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .l2 span{display:block;font:9px/1.2 var(--sans);color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
+.l2.h{grid-template-columns:1fr 1fr .6fr auto}
+.l2 .dt{text-align:right;line-height:1.35}
+.l2 .dt i{font:9px var(--sans);font-style:normal;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
 .l3{display:flex;align-items:center;gap:6px;margin-top:5px;font:10px var(--mono);color:var(--muted)}
 .l3 .r{margin-left:auto}
 .badge{font:600 8px var(--sans);letter-spacing:.12em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:rgba(var(--g-rgb),calc(.16*var(--gk)));color:var(--profit);box-shadow:0 0 10px rgba(var(--g-rgb),calc(.25*var(--gk)))}
@@ -147,6 +150,7 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
 .parts{border:1px solid var(--line);border-radius:14px;margin:6px 0 0;overflow:hidden}
 .parts .row{cursor:pointer}
 .msg{font-size:12px;margin-top:8px;min-height:16px}
+.imp{white-space:pre-wrap;font:11px/1.45 var(--mono);color:var(--muted);background:var(--well);box-shadow:var(--inset);border-radius:12px;padding:10px 12px;margin:10px 0 0;max-height:260px;overflow:auto}
 .quiet{font:11px var(--mono);color:var(--dim);margin:-2px 0 12px;cursor:pointer}
 .quiet u{text-decoration:none;color:var(--muted);border-bottom:1px dotted var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(var(--bot) + 84px);transform:translate(-50%,20px);z-index:40;opacity:0;transition:all .25s;pointer-events:none;
@@ -193,19 +197,81 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
 
   <!-- Подключение -->
   <section id="v-setup" class="hidden">
+    <!-- Подключение: если уже подключено — одна строка, форма по нажатию -->
     <div class="panel pad">
-      <div class="lbl">Подключение к журналу</div>
-      <p class="muted" style="font-size:12px;margin:6px 0 10px">Скопируйте ссылку для настройки (ту, что с <b>#u=…&amp;k=…</b>) и нажмите кнопку ниже. Или вставьте адрес и ключ вручную: они в Таблице, <b>Журнал → Калькулятор: ссылка и ключ</b>. Хранятся только на этом устройстве.</p>
-      <button class="btn green wide" id="cPaste" style="margin-bottom:12px">Вставить ссылку из буфера</button>
-      <label class="f">Адрес веб-приложения</label>
-      <div class="fr"><div><input id="cUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" autocapitalize="off" spellcheck="false"></div></div>
-      <label class="f">Ключ доступа</label>
-      <div class="fr"><div><input id="cKey" autocomplete="off" autocapitalize="off" spellcheck="false"></div></div>
-      <button class="btn primary wide" id="cSave">Подключить</button>
-      <div class="msg" id="cMsg"></div>
+      <div class="quiet hidden" id="cLine" style="margin:0">журнал подключён ✓ · <u>изменить</u></div>
+      <div id="cBox">
+        <div class="lbl">Подключение к журналу</div>
+        <p class="muted" style="font-size:12px;margin:6px 0 10px">Скопируйте ссылку для настройки (ту, что с <b>#u=…&amp;k=…</b>) и нажмите кнопку ниже. Или вставьте адрес и ключ вручную. Хранятся только на этом устройстве.</p>
+        <button class="btn green wide" id="cPaste" style="margin-bottom:12px">Вставить ссылку из буфера</button>
+        <label class="f">Адрес веб-приложения</label>
+        <div class="fr"><div><input id="cUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" autocapitalize="off" spellcheck="false"></div></div>
+        <label class="f">Ключ доступа</label>
+        <div class="fr"><div><input id="cKey" autocomplete="off" autocapitalize="off" spellcheck="false"></div></div>
+        <button class="btn primary wide" id="cSave">Подключить</button>
+      </div>
+      <div class="msg" id="cMsg" style="min-height:0"></div>
     </div>
+
+    <div id="setData">
+    <!-- Импорт отчёта брокера -->
+    <div class="sect"><h2>Отчёт брокера</h2><span id="impTo"></span></div>
     <div class="panel pad">
-      <div class="lbl" style="margin-bottom:8px">Тема</div>
+      <p class="muted" style="font-size:12px;margin:0 0 10px">Файл .xls из личного кабинета «Финама». Уже загруженные сделки пропускаются — можно грузить отчёт с запасом по датам.</p>
+      <label class="btn wide" style="display:flex;align-items:center;justify-content:center">Выбрать файл отчёта<input type="file" id="impFile" accept=".xls,.xlsx,.htm,.html,text/html,application/vnd.ms-excel" class="hidden"></label>
+      <pre class="imp hidden" id="impPlan"></pre>
+      <button class="btn primary wide hidden" id="impGo" style="margin-top:10px">Загрузить в журнал</button>
+      <div class="msg" id="impMsg" style="min-height:0"></div>
+    </div>
+
+    <!-- Торговые настройки -->
+    <div class="sect"><h2>Депозит и риск</h2></div>
+    <div class="panel pad">
+      <div class="fr">
+        <div><label class="f">Депозит, ₽</label><input id="stDeposit" inputmode="decimal"></div>
+      </div>
+      <div class="fr">
+        <div><label class="f">Риск на сделку, %</label><input id="stRiskTrade" inputmode="decimal"></div>
+        <div><label class="f">Суммарный риск, %</label><input id="stRiskTotal" inputmode="decimal"></div>
+      </div>
+      <div class="quiet" id="feeLine" style="margin:0 0 10px">комиссии и ставки · <u>изменить</u></div>
+      <div class="hidden" id="feeBox">
+        <div class="fr">
+          <div><label class="f">Фьючерсы, ₽/контракт</label><input id="stCommFut" inputmode="decimal"></div>
+          <div><label class="f">Биржевой сбор, %</label><input id="stExchFut" inputmode="decimal"></div>
+        </div>
+        <div class="fr">
+          <div><label class="f">Акции, % за сторону</label><input id="stCommStk" inputmode="decimal"></div>
+          <div><label class="f">Плечо фьюч., % от ГО</label><input id="stFutLev" inputmode="decimal"></div>
+        </div>
+        <div class="fr">
+          <div><label class="f">РЕПО шорта, % год.</label><input id="stRepoShort" inputmode="decimal"></div>
+          <div><label class="f">Акции в долг, % год.</label><input id="stRepoLong" inputmode="decimal"></div>
+        </div>
+      </div>
+      <label class="f">Стратегии · по одной в строке</label>
+      <div class="fr"><div><textarea id="stStrat" rows="4" style="font-size:14px"></textarea></div></div>
+      <button class="btn primary wide" id="stGo">Сохранить</button>
+      <div class="msg" id="stMsg" style="min-height:0"></div>
+    </div>
+
+    <!-- Доход / расход вне сделок -->
+    <div class="sect"><h2>Доход или расход вне сделок</h2></div>
+    <div class="panel pad">
+      <div class="seg" id="exSign"><button data-s="-1" class="on">Расход</button><button data-s="1">Доход</button></div>
+      <div class="fr">
+        <div><label class="f">Сумма, ₽</label><input id="exAmount" inputmode="decimal"></div>
+        <div><label class="f">Дата</label><input id="exDate" type="date"></div>
+      </div>
+      <div class="fr"><div><label class="f">Вид</label><input id="exKind" list="exKinds" autocomplete="off" placeholder="дивиденды, пени, налог…" style="font:15px var(--sans)"><datalist id="exKinds"></datalist></div></div>
+      <div class="fr"><div><textarea id="exNote" rows="1" placeholder="комментарий"></textarea></div></div>
+      <button class="btn wide" id="exGo">Записать</button>
+      <div class="msg" id="exMsg" style="min-height:0"></div>
+    </div>
+    </div>
+
+    <div class="sect"><h2>Тема</h2></div>
+    <div class="panel pad">
       <div class="seg" id="theme" style="margin:0"><button data-t="mono">Монохром</button><button data-t="emerald">Приглушённая</button><button data-t="neon">Неон</button></div>
     </div>
   </section>
@@ -369,7 +435,7 @@ function show(v) {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   document.body.classList.toggle('tab-calc', v === 'calc');
   $('title').textContent = TITLES[v];
-  if (v === 'setup') { $('cUrl').value = S.cfg.url; $('cKey').value = S.cfg.key; }
+  if (v === 'setup') { $('cUrl').value = S.cfg.url; $('cKey').value = S.cfg.key; fillSettings(); }
   if (v === 'calc' && !$('calcFrame').src) $('calcFrame').src = 'calc.html';
   if (v === 'stats') renderStats();
   if ((v === 'open' || v === 'orders') && S.data && Date.now() - new Date(S.data.at) > 15000) load();
@@ -815,16 +881,94 @@ function renderHist() {
   $('hist').innerHTML = L.length ? L.slice(0, S.hLimit).map(t => `<div class="row" style="cursor:default">
       <div class="l1"><span class="tk">${esc(t.ticker)}</span>${sideTag(t.side)}<span class="q">${t.qty}</span>
         <span class="v ${cls(t.pnl)}">${rub(t.pnl, true)}</span></div>
-      <div class="l2">
+      <div class="l2 h">
         <div><span>вход</span>${fp(t.entry, t.ticker)}</div>
         <div><span>выход</span>${fp(t.exit, t.ticker)}</div>
         <div><span>R</span>${t.r != null && isFinite(t.r) ? dec(t.r, 2) : '—'}</div>
-        <div><span>закрыта</span>${dd(t.closed)}</div>
+        <div class="dt"><i>откр.</i> ${t.opened ? dd(t.opened) : '—'}<br><i>закр.</i> ${dd(t.closed)}</div>
       </div>
       ${t.strategy || t.note ? `<div class="l3">${esc([t.strategy, t.note].filter(Boolean).join(' · '))}</div>` : ''}
     </div>`).join('') : '<div class="empty">Нет сделок</div>';
   $('hMore').classList.toggle('hidden', L.length <= S.hLimit);
 }
+
+// ------------------------------------------------------------------ настройки, импорт, расходы
+const PCT = ['riskTrade', 'riskTotal', 'exchFut', 'commStk', 'repoShort', 'repoLong', 'futLev'];
+const ST_IDS = { deposit: 'stDeposit', riskTrade: 'stRiskTrade', riskTotal: 'stRiskTotal', commFut: 'stCommFut', exchFut: 'stExchFut',
+  commStk: 'stCommStk', repoShort: 'stRepoShort', repoLong: 'stRepoLong', futLev: 'stFutLev' };
+const pctStr = v => v == null || v === '' ? '' : String(+(v * 100).toPrecision(6)).replace('.', ',');
+function fillSettings() {
+  const connected = !!(S.cfg.url && S.cfg.key && S.data);
+  $('cLine').classList.toggle('hidden', !connected); $('cBox').classList.toggle('hidden', connected);
+  $('setData').classList.toggle('hidden', !connected);
+  if (!connected) return;
+  const st = S.data.settings;
+  Object.entries(ST_IDS).forEach(([k, id]) => { $(id).value = PCT.includes(k) ? pctStr(st[k]) : (st[k] ?? ''); });
+  $('stStrat').value = (S.data.strategies || []).join('\n');
+  $('impTo').textContent = S.data.importedTo ? 'загружено до ' + dd(S.data.importedTo) : '';
+  const kinds = [...new Set((S.data.expenses || []).map(e => e.kind).filter(Boolean))].sort();
+  $('exKinds').innerHTML = kinds.map(k => `<option value="${esc(k)}">`).join('');
+  if (!$('exDate').value) $('exDate').value = mskNow().slice(0, 10);
+}
+const msgTo = (id, t, c) => { $(id).textContent = t; $(id).className = 'msg ' + (c || ''); };
+$('cLine').onclick = () => { $('cLine').classList.add('hidden'); $('cBox').classList.remove('hidden'); };
+$('feeLine').onclick = () => { $('feeLine').classList.add('hidden'); $('feeBox').classList.remove('hidden'); };
+
+$('stGo').onclick = async () => {
+  const s = {};
+  for (const [k, id] of Object.entries(ST_IDS)) {
+    const v = num($(id).value);
+    if (!isFinite(v) || v < 0) return msgTo('stMsg', 'Проверьте поле: ' + $(id).previousElementSibling.textContent, 'neg');
+    s[k] = PCT.includes(k) ? v / 100 : v;
+  }
+  const strategies = $('stStrat').value.split('\n').map(x => x.trim()).filter(Boolean);
+  Object.assign(S.data.settings, s); S.data.strategies = strategies; render();       // сразу на экране
+  msgTo('stMsg', 'Сохраняю…', 'muted'); $('stGo').disabled = true;
+  const j = await apiPost('settings', { settings: s, strategies });
+  $('stGo').disabled = false;
+  msgTo('stMsg', j.ok ? '✓ Сохранено в журнал' : '✗ ' + j.error, j.ok ? 'pos' : 'neg');
+};
+
+$('exSign').onclick = e => { const b = e.target.closest('button'); if (!b) return; $('exSign').querySelectorAll('button').forEach(z => z.classList.toggle('on', z === b)); };
+$('exGo').onclick = async () => {
+  const a = Math.abs(num($('exAmount').value)), kind = $('exKind').value.trim();
+  if (!(a > 0)) return msgTo('exMsg', 'Укажите сумму', 'neg');
+  if (!kind) return msgTo('exMsg', 'Укажите вид', 'neg');
+  const sign = +$('exSign').querySelector('.on').dataset.s;
+  msgTo('exMsg', 'Записываю…', 'muted'); $('exGo').disabled = true;
+  const j = await apiPost('expense', { amount: sign * a, kind, date: ($('exDate').value || mskNow().slice(0, 10)) + 'T12:00', note: $('exNote').value });
+  $('exGo').disabled = false;
+  if (j.ok) { msgTo('exMsg', '✓ ' + (j.msg || 'Записано'), 'pos'); $('exAmount').value = ''; $('exNote').value = ''; }
+  else msgTo('exMsg', '✗ ' + j.error, 'neg');
+};
+
+// Импорт: файл «Финама» — это HTML-таблица; лишнее (стили, скрипты, атрибуты) вырезаем, чтобы отправка была лёгкой
+const slim = t => t.replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, '').replace(/<(t[dhr]|table|br)\b[^>]*>/gi, '<$1>')
+  .replace(/<(?!\/?(t[dhr]|table|br)\b)[^>]+>/gi, '').replace(/[ \t]+/g, ' ');
+let impText = '';
+$('impFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = async () => {
+    impText = slim(String(r.result));
+    $('impPlan').classList.add('hidden'); $('impGo').classList.add('hidden');
+    msgTo('impMsg', 'Проверяю отчёт… (Google думает 10–30 секунд)', 'muted'); spin(true);
+    const j = await apiPost('importPreview', { text: impText });
+    spin(false); e.target.value = '';
+    if (!j.ok) return msgTo('impMsg', '✗ ' + j.error, 'neg');
+    $('impPlan').textContent = j.msg; $('impPlan').classList.remove('hidden');
+    $('impGo').classList.toggle('hidden', !j.count);
+    msgTo('impMsg', j.count ? 'Проверьте и нажмите «Загрузить»' : 'Нового в отчёте нет — всё уже в журнале', j.count ? 'muted' : 'pos');
+  };
+  r.readAsText(f, 'utf-8');
+};
+$('impGo').onclick = async () => {
+  $('impGo').disabled = true; spin(true); msgTo('impMsg', 'Загружаю… не закрывайте приложение', 'muted');
+  const j = await apiPost('import', { text: impText });
+  $('impGo').disabled = false; spin(false);
+  if (j.ok) { $('impGo').classList.add('hidden'); msgTo('impMsg', '✓ ' + (j.msg || 'Загружено'), 'pos'); impText = ''; }
+  else msgTo('impMsg', '✗ ' + j.error, 'neg');
+};
 
 // ------------------------------------------------------------------ события
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.v));

@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="dark">
 <meta name="darkreader-lock">
 <title>Калькулятор позиции</title>
-<script>(function () { const t = () => { try { document.documentElement.dataset.theme = JSON.parse(localStorage.getItem('journal.theme')) || 'emerald'; } catch (e) {} };
+<script>(function () { const t = () => { try { document.documentElement.dataset.theme = ({ sage: 'emerald' })[JSON.parse(localStorage.getItem('journal.theme'))] || JSON.parse(localStorage.getItem('journal.theme')) || 'emerald'; } catch (e) {} };
   t(); addEventListener('storage', e => { if (e.key === 'journal.theme') t(); }); })();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,13 +23,13 @@
   --sans:Inter,-apple-system,system-ui,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 }
-/* Яркость неона: emerald (по умолчанию, мягче) · sage (спокойный) · neon (яркий). Переключается в ⚙. */
+/* Темы: emerald — приглушённая (по умолчанию) · neon — яркая · mono — белая подсветка без цвета. Переключается в ⚙. */
 :root,:root[data-theme=emerald]{--profit:#52c79c;--loss:#e07d6c;--accent:#e58a55;--warn:#ddb06e;
   --g-rgb:82,199,156;--r-rgb:224,125,108;--o-rgb:229,138,85;--w-rgb:221,176,110;
   --g-hi:#a6e3cb;--g-lo:#2f9673;--o-hi:#f0b892;--o-lo:#c9693a;--r-lo:#b85445;--gk:.55}
-:root[data-theme=sage]{--profit:#8fc9ab;--loss:#d4917f;--accent:#d29a72;--warn:#d6b47e;
-  --g-rgb:143,201,171;--r-rgb:212,145,127;--o-rgb:210,154,114;--w-rgb:214,180,126;
-  --g-hi:#c3e3d2;--g-lo:#5f9a7c;--o-hi:#e6c0a3;--o-lo:#b17650;--r-lo:#a8695a;--gk:.3}
+:root[data-theme=mono]{--profit:#eef0f2;--loss:#9a9ca3;--accent:#e6e7ea;--warn:#c9cbd0;
+  --g-rgb:238,240,242;--r-rgb:154,156,163;--o-rgb:230,231,234;--w-rgb:201,203,208;
+  --g-hi:#ffffff;--g-lo:#b9bcc2;--o-hi:#ffffff;--o-lo:#a9acb3;--r-lo:#6e7077;--gk:.45}
 :root[data-theme=neon]{--profit:#3ee08f;--loss:#ff6a4d;--accent:#ff7a2a;--warn:#ffb347;
   --g-rgb:62,224,143;--r-rgb:255,106,77;--o-rgb:255,122,42;--w-rgb:255,179,71;
   --g-hi:#9bf5c4;--g-lo:#17a862;--o-hi:#ffb27a;--o-lo:#e8500a;--r-lo:#d9381e;--gk:1}

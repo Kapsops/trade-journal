@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <title>Журнал</title>
-<script>try { document.documentElement.dataset.theme = JSON.parse(localStorage.getItem('journal.theme')) || 'emerald'; } catch (e) {}</script>
+<script>try { document.documentElement.dataset.theme = ({ sage: 'emerald' })[JSON.parse(localStorage.getItem('journal.theme'))] || JSON.parse(localStorage.getItem('journal.theme')) || 'emerald'; } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -32,13 +32,13 @@
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   --top:env(safe-area-inset-top,0px);--bot:env(safe-area-inset-bottom,0px);
 }
-/* Яркость неона: emerald (по умолчанию, мягче) · sage (спокойный) · neon (яркий). Переключается в ⚙. */
+/* Темы: emerald — приглушённая (по умолчанию) · neon — яркая · mono — белая подсветка без цвета. Переключается в ⚙. */
 :root,:root[data-theme=emerald]{--profit:#52c79c;--loss:#e07d6c;--accent:#e58a55;--warn:#ddb06e;
   --g-rgb:82,199,156;--r-rgb:224,125,108;--o-rgb:229,138,85;--w-rgb:221,176,110;
   --g-hi:#a6e3cb;--g-lo:#2f9673;--o-hi:#f0b892;--o-lo:#c9693a;--r-lo:#b85445;--gk:.55}
-:root[data-theme=sage]{--profit:#8fc9ab;--loss:#d4917f;--accent:#d29a72;--warn:#d6b47e;
-  --g-rgb:143,201,171;--r-rgb:212,145,127;--o-rgb:210,154,114;--w-rgb:214,180,126;
-  --g-hi:#c3e3d2;--g-lo:#5f9a7c;--o-hi:#e6c0a3;--o-lo:#b17650;--r-lo:#a8695a;--gk:.3}
+:root[data-theme=mono]{--profit:#eef0f2;--loss:#9a9ca3;--accent:#e6e7ea;--warn:#c9cbd0;
+  --g-rgb:238,240,242;--r-rgb:154,156,163;--o-rgb:230,231,234;--w-rgb:201,203,208;
+  --g-hi:#ffffff;--g-lo:#b9bcc2;--o-hi:#ffffff;--o-lo:#a9acb3;--r-lo:#6e7077;--gk:.45}
 :root[data-theme=neon]{--profit:#3ee08f;--loss:#ff6a4d;--accent:#ff7a2a;--warn:#ffb347;
   --g-rgb:62,224,143;--r-rgb:255,106,77;--o-rgb:255,122,42;--w-rgb:255,179,71;
   --g-hi:#9bf5c4;--g-lo:#17a862;--o-hi:#ffb27a;--o-lo:#e8500a;--r-lo:#d9381e;--gk:1}
@@ -89,7 +89,7 @@ header h1{font-size:11px;font-weight:600;margin:0;flex:1;letter-spacing:.3em;tex
 .side{font:600 8px var(--sans);letter-spacing:.12em;padding:2px 6px;border-radius:999px}
 .side.L{background:rgba(var(--g-rgb),calc(.13*var(--gk)));color:var(--profit)}.side.S{background:rgba(var(--r-rgb),calc(.13*var(--gk)));color:var(--loss)}
 .q{font:11px var(--mono);color:var(--muted)}
-.n{font:9px var(--sans);color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:1px 6px}
+.n{font:500 9px var(--sans);color:var(--muted);border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);border-radius:999px;padding:1px 6px}
 .l1 .v{margin-left:auto;font:600 13px var(--mono);white-space:nowrap}
 .l2{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:5px}
 .l2 div{min-width:0;font:10px/1.2 var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -144,7 +144,7 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
 .preview strong{font:600 17px var(--mono)}
 .preview em{font:11px var(--mono);font-style:normal;color:var(--muted)}
 .parts{border:1px solid var(--line);border-radius:14px;margin:6px 0 0;overflow:hidden}
-.parts .row{cursor:default}
+.parts .row{cursor:pointer}
 .msg{font-size:12px;margin-top:8px;min-height:16px}
 .toast{position:fixed;left:50%;bottom:calc(var(--bot) + 84px);transform:translate(-50%,20px);z-index:40;opacity:0;transition:all .25s;pointer-events:none;
   background:rgba(25,26,30,.95);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:12px;box-shadow:0 10px 30px rgba(0,0,0,.6);max-width:90vw;text-align:center}
@@ -202,8 +202,8 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
       <div class="msg" id="cMsg"></div>
     </div>
     <div class="panel pad">
-      <div class="lbl" style="margin-bottom:8px">Оформление · яркость цвета</div>
-      <div class="seg" id="theme" style="margin:0"><button data-t="sage">Шалфей</button><button data-t="emerald">Изумруд</button><button data-t="neon">Неон</button></div>
+      <div class="lbl" style="margin-bottom:8px">Тема</div>
+      <div class="seg" id="theme" style="margin:0"><button data-t="mono">Монохром</button><button data-t="emerald">Приглушённая</button><button data-t="neon">Неон</button></div>
     </div>
   </section>
 
@@ -493,73 +493,142 @@ function allocate(parts, q) {
 }
 function say(t, c) { $('sMsg').textContent = t; $('sMsg').className = 'msg ' + (c || 'neg'); }
 
+/** Строка сделки — как в «Открытых». */
+function dealRow(p, t) {
+  const safe = p.stop != null && p.stop >= 0;
+  return `<div class="row${safe ? ' safe' : ''}" data-pid="${p.id}">
+      <div class="l1"><span class="q" style="color:var(--text)">${p.qty}</span><span class="q">по ${fp(p.entry, t)}</span><span class="q">#${p.id}</span>
+        <span class="v ${p.price == null ? 'muted' : 'glow ' + cls(p.pnl)}">${p.price == null ? 'нет цены' : rub(p.pnl, true)}</span></div>
+      <div class="l2">
+        <div><span>стоп</span>${p.sl == null ? '<b class="neg">нет</b>' : fp(p.sl, t)}</div>
+        <div><span>тейк</span>${fp(p.tp, t)}</div>
+        <div><span>по стопу</span><b class="${cls(p.stop)}" style="font-weight:400">${p.stop == null ? '—' : rub(p.stop, true)}</b></div>
+        <div><span>открыта</span>${dm(p.opened)}</div>
+      </div>
+      ${safe || p.strategy ? `<div class="l3">${safe ? '<span class="badge">без риска</span>' : ''}${p.strategy ? '<span>' + esc(p.strategy) + '</span>' : ''}<span class="r muted">›</span></div>` : ''}
+    </div>`;
+}
+function pnlOfFn(t, side) {
+  const s = spec(t), dir = side === 'S' ? -1 : 1;
+  return (p, x, q) => s ? dir * (x - p.entry) * s.pv * q - feeSide(s, p.entry, q) - feeSide(s, x, q) : NaN;
+}
+const sheetHead = (t, side, qty, extra) => `<h3>${esc(t)} ${sideTag(side)} <span class="q">${qty}</span>${extra || ''}</h3>`;
+
+/** Позиция: несколько сделок — список сделок и действия для всей позиции; одна сделка — сразу её окно. */
 function positionSheet(g) {
-  const s = spec(g.ticker), t = g.ticker, many = g.parts.length > 1;
-  const dir = g.side === 'S' ? -1 : 1;
-  const pnlOf = (p, x, q) => s ? dir * (x - p.entry) * s.pv * q - feeSide(s, p.entry, q) - feeSide(s, x, q) : NaN;
+  if (g.parts.length === 1) return dealSheet(g.parts[0], null);
+  const t = g.ticker;
   openSheet(`
-    <h3>${esc(t)} ${sideTag(g.side)} <span class="q">${g.qty}</span>${many ? `<span class="n">${g.parts.length} сд.</span>` : ''}</h3>
-    <div class="sub">${esc(g.name || (s && s.name) || '')} · ${many ? 'ср. вход' : 'вход'} ${fp(g.entry, t)}${!many ? ' · ' + dm(g.parts[0].opened) + (g.parts[0].strategy ? ' · ' + esc(g.parts[0].strategy) : '') : ''}</div>
-    <div class="seg" id="mode"><button data-m="close" class="on">Закрыть</button><button data-m="edit">Стоп / тейк</button></div>
-    <div id="mClose">
-      <div class="preview"><strong id="pv">—</strong><em id="pvNote"></em></div>
-      <div class="fr">
-        <div><label class="f">Цена выхода</label><input id="xPrice" inputmode="decimal" value="${g.price ?? ''}"></div>
-        <div><label class="f">Объём${many ? ' · старые первыми' : ''}</label><div class="inl"><input id="xQty" inputmode="numeric" value="${g.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
-      </div>
-      <div class="fr"><div><label class="f">Время, МСК</label><input id="xTime" type="datetime-local" value="${mskNow()}"></div></div>
-      <div class="fr"><div><label class="f">Заметка</label><textarea id="xNote" rows="2"></textarea></div></div>
-      <button class="btn primary wide" id="xGo">Закрыть</button>
-    </div>
-    <div id="mEdit" class="hidden">
-      <div class="fr">
-        <div><label class="f">Стоп${many ? ' · для всех' : ''}</label><input id="eSl" inputmode="decimal" value="${g.sl ?? ''}" placeholder="${g.sl === undefined ? 'разные' : ''}"></div>
-        <div><label class="f">Тейк${many ? ' · для всех' : ''}</label><input id="eTp" inputmode="decimal" value="${g.tp ?? ''}" placeholder="${g.tp === undefined ? 'разные' : ''}"></div>
-      </div>
-      <div style="margin:-2px 0 10px"><button class="btn xs" id="eBe">Стоп в безубыток · ${fp(g.entry, t)}</button></div>
-      <div class="preview"><strong id="ev">—</strong><em>если сработает стоп</em></div>
-      <button class="btn primary wide" id="eGo">Сохранить</button>
-    </div>
-    <div class="msg" id="sMsg"></div>
-    ${many ? `<div class="lbl" style="margin-top:10px">Сделки в позиции</div><div class="parts">${g.parts.map(p => `
-      <div class="row"><div class="l1"><span class="q">#${p.id}</span><span class="q">${p.qty} по ${fp(p.entry, t)}</span>
-        <span class="v ${cls(p.pnl)}" style="font-size:12px">${rub(p.pnl, true)}</span></div>
-        <div class="l3">${dm(p.opened)}${p.strategy ? ' · ' + esc(p.strategy) : ''} · стоп ${fp(p.sl, t)}<span class="r ${cls(p.stop)}">${p.stop == null ? '' : rub(p.stop, true)}</span></div></div>`).join('')}</div>` : ''}`);
+    ${sheetHead(t, g.side, g.qty, `<span class="n">${g.parts.length} сд.</span>`)}
+    <div class="sub">ср. вход ${fp(g.entry, t)} · сейчас ${fp(g.price, t)} · <span class="${cls(g.pnl)}">${rub(g.pnl, true)}</span>${g.stop != null ? ' · по стопу <span class="' + cls(g.stop) + '">' + rub(g.stop, true) + '</span>' : ''}</div>
+    <div class="lbl" style="margin-bottom:6px">Сделки · нажмите, чтобы закрыть или передвинуть стоп</div>
+    <div class="parts" id="partList">${g.parts.map(p => dealRow(p, t)).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn" id="gEdit">Стоп / тейк для всех</button><button class="btn primary" id="gClose">Закрыть всю</button>
+    </div>`);
+  $('partList').onclick = e => { const r = e.target.closest('[data-pid]'); if (r) dealSheet(g.parts.find(p => String(p.id) === r.dataset.pid), g); };
+  $('gClose').onclick = () => groupCloseSheet(g);
+  $('gEdit').onclick = () => groupEditSheet(g);
+}
+const backLink = g => g ? `<button class="btn xs" id="back" style="margin-bottom:10px">‹ Позиция ${esc(g.ticker)}</button>` : '';
+function bindBack(g) { if (g) $('back').onclick = () => positionSheet(g); }
 
-  const upd = () => {
-    const x = num($('xPrice').value), q = Math.min(num($('xQty').value), g.qty);
-    const v = allocate(g.parts, q).reduce((s, [p, n]) => s + pnlOf(p, x, n), 0);
-    $('pv').textContent = isFinite(v) ? rub(v, true) : '—'; $('pv').className = 'glow ' + cls(v);
-    $('pvNote').textContent = isFinite(v) ? (q < g.qty ? 'частично, останется ' + (g.qty - q) : 'вся позиция') + ' · с комиссией' : '';
-  };
-  const updE = () => {
-    const sl = num($('eSl').value);
-    const v = isFinite(sl) ? g.parts.reduce((s, p) => s + pnlOf(p, sl, p.qty), 0) : NaN;
-    $('ev').textContent = isFinite(v) ? rub(v, true) : 'без стопа'; $('ev').className = 'glow ' + cls(v);
-  };
+/** Одна сделка: стоп/тейк и закрытие на одном экране, без переключателей. */
+function dealSheet(p, g) {
+  const t = p.ticker, pnlOf = pnlOfFn(t, p.side);
+  openSheet(`
+    ${backLink(g)}
+    ${sheetHead(t, p.side, p.qty, `<span class="q">#${p.id}</span>`)}
+    <div class="sub">вход ${fp(p.entry, t)} · ${dm(p.opened)}${p.strategy ? ' · ' + esc(p.strategy) : ''} · сейчас <span class="${cls(p.pnl)}">${rub(p.pnl, true)}</span></div>
+    <div class="lbl" style="margin-bottom:6px">Стоп и тейк</div>
+    <div class="fr">
+      <div><input id="eSl" inputmode="decimal" value="${p.sl ?? ''}" placeholder="стоп"></div>
+      <div><input id="eTp" inputmode="decimal" value="${p.tp ?? ''}" placeholder="тейк"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin:-2px 0 14px">
+      <button class="btn xs" id="eBe">В безубыток</button><span class="q">по стопу <b id="ev" style="font-weight:500">—</b></span>
+      <button class="btn xs green" id="eGo" style="margin-left:auto">Сохранить</button>
+    </div>
+    <div class="lbl" style="margin-bottom:6px">Закрыть сделку</div>
+    <div class="fr">
+      <div><input id="xPrice" inputmode="decimal" value="${p.price ?? ''}" placeholder="цена выхода"></div>
+      <div><div class="inl"><input id="xQty" inputmode="numeric" value="${p.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
+    </div>
+    <div class="fr"><div><input id="xTime" type="datetime-local" value="${mskNow()}"></div></div>
+    <div class="fr"><div><textarea id="xNote" rows="1" placeholder="заметка"></textarea></div></div>
+    <button class="btn primary wide" id="xGo">Закрыть · <span id="pv">—</span></button>
+    <div class="msg" id="sMsg"></div>`);
+  bindBack(g);
+  const upd = () => { const v = pnlOf(p, num($('xPrice').value), Math.min(num($('xQty').value), p.qty)); $('pv').textContent = isFinite(v) ? rub(v, true) : '—'; };
+  const updE = () => { const sl = num($('eSl').value), v = isFinite(sl) ? pnlOf(p, sl, p.qty) : NaN;
+    $('ev').textContent = isFinite(v) ? rub(v, true) : 'без стопа'; $('ev').className = cls(v); };
   ['xPrice', 'xQty'].forEach(id => $(id).oninput = upd); $('eSl').oninput = updE;
-  $('xHalf').onclick = () => { $('xQty').value = Math.max(1, Math.floor(g.qty / 2)); upd(); };
-  $('eBe').onclick = () => { $('eSl').value = +g.entry.toFixed(6); updE(); };
-  $('mode').querySelectorAll('button').forEach(b => b.onclick = () => {
-    $('mode').querySelectorAll('button').forEach(z => z.classList.toggle('on', z === b));
-    $('mClose').classList.toggle('hidden', b.dataset.m !== 'close'); $('mEdit').classList.toggle('hidden', b.dataset.m !== 'edit');
-  });
+  $('xHalf').onclick = () => { $('xQty').value = Math.max(1, Math.floor(p.qty / 2)); upd(); };
+  $('eBe').onclick = () => { $('eSl').value = p.entry; updE(); };
   upd(); updE();
-
   $('xGo').onclick = () => {
     const price = num($('xPrice').value), q = num($('xQty').value);
-    if (!(price > 0)) return say('Укажите цену выхода');
-    if (!(q > 0)) return say('Укажите объём');
-    const time = $('xTime').value, note = $('xNote').value;
-    runSteps($('xGo'), allocate(g.parts, Math.min(q, g.qty)).map(([p, n]) => ['close', { id: p.id, price, qty: n, time, note }]));
+    if (!(price > 0)) return say('Укажите цену выхода'); if (!(q > 0)) return say('Укажите объём');
+    runSteps(null, [['close', { id: p.id, price, qty: Math.min(q, p.qty), time: $('xTime').value, note: $('xNote').value }]]);
   };
+  $('eGo').onclick = () => runSteps(null, [['edit', { id: p.id, sl: $('eSl').value.trim().replace(',', '.'), tp: $('eTp').value.trim().replace(',', '.') }]]);
+}
+
+/** Закрыть всю позицию (или часть — от старых сделок к новым). */
+function groupCloseSheet(g) {
+  const t = g.ticker, pnlOf = pnlOfFn(t, g.side);
+  openSheet(`
+    ${backLink(g)}
+    ${sheetHead(t, g.side, g.qty, `<span class="n">${g.parts.length} сд.</span>`)}
+    <div class="sub">Закрыть позицию · ср. вход ${fp(g.entry, t)} · если объём меньше — закрываются сначала старые сделки</div>
+    <div class="fr">
+      <div><label class="f">Цена выхода</label><input id="xPrice" inputmode="decimal" value="${g.price ?? ''}"></div>
+      <div><label class="f">Объём</label><div class="inl"><input id="xQty" inputmode="numeric" value="${g.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
+    </div>
+    <div class="fr"><div><input id="xTime" type="datetime-local" value="${mskNow()}"></div></div>
+    <div class="fr"><div><textarea id="xNote" rows="1" placeholder="заметка"></textarea></div></div>
+    <button class="btn primary wide" id="xGo">Закрыть · <span id="pv">—</span></button>
+    <div class="msg" id="sMsg"></div>`);
+  bindBack(g);
+  const upd = () => { const x = num($('xPrice').value), q = Math.min(num($('xQty').value), g.qty);
+    const v = allocate(g.parts, q).reduce((s, [p, n]) => s + pnlOf(p, x, n), 0); $('pv').textContent = isFinite(v) ? rub(v, true) : '—'; };
+  ['xPrice', 'xQty'].forEach(id => $(id).oninput = upd);
+  $('xHalf').onclick = () => { $('xQty').value = Math.max(1, Math.floor(g.qty / 2)); upd(); };
+  upd();
+  $('xGo').onclick = () => {
+    const price = num($('xPrice').value), q = num($('xQty').value);
+    if (!(price > 0)) return say('Укажите цену выхода'); if (!(q > 0)) return say('Укажите объём');
+    const time = $('xTime').value, note = $('xNote').value;
+    runSteps(null, allocate(g.parts, Math.min(q, g.qty)).map(([p, n]) => ['close', { id: p.id, price, qty: n, time, note }]));
+  };
+}
+
+/** Один стоп/тейк на все сделки позиции. Пустое поле при «разные» — не трогаем. */
+function groupEditSheet(g) {
+  const t = g.ticker, pnlOf = pnlOfFn(t, g.side);
+  openSheet(`
+    ${backLink(g)}
+    ${sheetHead(t, g.side, g.qty, `<span class="n">${g.parts.length} сд.</span>`)}
+    <div class="sub">Стоп и тейк для всех сделок позиции · ср. вход ${fp(g.entry, t)}</div>
+    <div class="fr">
+      <div><label class="f">Стоп</label><input id="eSl" inputmode="decimal" value="${g.sl ?? ''}" placeholder="${g.sl === undefined ? 'сейчас разные' : ''}"></div>
+      <div><label class="f">Тейк</label><input id="eTp" inputmode="decimal" value="${g.tp ?? ''}" placeholder="${g.tp === undefined ? 'сейчас разные' : ''}"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin:-2px 0 12px">
+      <button class="btn xs" id="eBe">В безубыток · ${fp(g.entry, t)}</button><span class="q">по стопу <b id="ev" style="font-weight:500">—</b></span>
+    </div>
+    <button class="btn primary wide" id="eGo">Сохранить для всех</button>
+    <div class="msg" id="sMsg"></div>`);
+  bindBack(g);
+  const updE = () => { const sl = num($('eSl').value), v = isFinite(sl) ? g.parts.reduce((s, p) => s + pnlOf(p, sl, p.qty), 0) : NaN;
+    $('ev').textContent = isFinite(v) ? rub(v, true) : '—'; $('ev').className = cls(v); };
+  $('eSl').oninput = updE; $('eBe').onclick = () => { $('eSl').value = +g.entry.toFixed(6); updE(); }; updE();
   $('eGo').onclick = () => {
-    const sl = $('eSl').value.trim().replace(',', '.'), tp = $('eTp').value.trim().replace(',', '.');
-    const d = {};
-    if (!(g.sl === undefined && sl === '')) d.sl = sl;              // «разные» и поле не трогали — не меняем
+    const sl = $('eSl').value.trim().replace(',', '.'), tp = $('eTp').value.trim().replace(',', '.'), d = {};
+    if (!(g.sl === undefined && sl === '')) d.sl = sl;
     if (!(g.tp === undefined && tp === '')) d.tp = tp;
     if (!Object.keys(d).length) return say('Нечего сохранять');
-    runSteps($('eGo'), g.parts.map(p => ['edit', Object.assign({ id: p.id }, d)]));
+    runSteps(null, g.parts.map(p => ['edit', Object.assign({ id: p.id }, d)]));
   };
 }
 

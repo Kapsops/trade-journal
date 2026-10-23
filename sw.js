@@ -1,7 +1,7 @@
 // Сервис-воркер: приложение открывается и без сети (последние данные — из памяти устройства).
 // Свои файлы — сначала из сети (чтобы обновления приходили сразу), при отсутствии сети — из кэша.
 // Запросы к журналу (script.google.com) и MOEX не кэшируются.
-const CACHE = 'journal-v5';
+const CACHE = 'journal-v6';
 const SHELL = ['./', 'index.html', 'calc.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

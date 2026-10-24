@@ -234,7 +234,7 @@ const S = {
   list: [], bySecid: {}, spec: null, last: null, lastTime: '',
   side: 'L', rmode: store.get('rmode', 'pct'),
   journal: null,                     // в этой версии журнала нет
-  cfg: Object.assign({ dep: '', riskT: '1', riskA: '5', commFut: '0.45', exchFut: '0.0066', commStk: '0.06', repoShort: '6', repoLong: '14.65', futLev: '20' }, store.get('cfg', {})),
+  cfg: Object.assign({ dep: '1000000', riskT: '1', riskA: '5', commFut: '0.45', exchFut: '0.0066', commStk: '0.06', repoShort: '6', repoLong: '14.65', futLev: '20' }, store.get('cfg', {})),
 };
 
 // ------------------------------------------------------------------ MOEX: список инструментов
@@ -592,7 +592,16 @@ $('sSave').onclick = () => {
     await loadList();
     tk.disabled = false; tk.placeholder = 'RIZ6, Si, Газпром…';
     const last = store.get('ticker', '');
-    if (last && S.bySecid[last]) pick(S.bySecid[last]);
+    // Первый запуск — пример: Газпром, стоп на 2% ниже цены, тейк на 6% выше. Дальше — последний выбранный тикер.
+    const x = S.bySecid[last] || (!last ? S.bySecid['GAZP'] : null);
+    if (x) {
+      await pick(x);
+      if (!last && x.last && !$('sl').value) {
+        const k = v => +(Math.round(v / x.minstep) * x.minstep).toFixed(6);
+        $('sl').value = k(x.last * 0.98); $('tp').value = k(x.last * 1.06);
+        calc();
+      }
+    }
   } catch (e) {
     tk.placeholder = 'MOEX недоступна: ' + e.message;
   }

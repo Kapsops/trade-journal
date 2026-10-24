@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="ru" data-theme="emerald">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="darkreader-lock">
+<title>Калькулятор позиции</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Матовое стекло на почти чёрном, мягкие вдавленные поля, неон: зелёный — прибыль/Long, оранжевый — действие/Short */
+:root{
+  --bg:#0a0b0d;--panel:rgba(255,255,255,.035);--line:rgba(255,255,255,.07);--text:#e8e8ea;--muted:#7d7f86;
+  --well:#111215;
+  --glow-g:0 0 18px rgba(var(--g-rgb),calc(.55*var(--gk))),0 0 2px rgba(var(--g-rgb),calc(.9*var(--gk)));
+  --glow-o:0 0 22px rgba(var(--o-rgb),calc(.55*var(--gk))),0 0 2px rgba(var(--o-rgb),calc(.9*var(--gk)));
+  --inset:inset 2px 2px 6px rgba(0,0,0,.7),inset -1px -1px 2px rgba(255,255,255,.035);
+  --raise:0 10px 30px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.07);
+  --sans:Inter,-apple-system,system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+/* Темы: emerald — приглушённая (по умолчанию) · neon — яркая · mono — белая подсветка без цвета. Переключается в ⚙. */
+:root,:root[data-theme=emerald]{--profit:#52c79c;--loss:#e07d6c;--accent:#e58a55;--warn:#ddb06e;
+  --g-rgb:82,199,156;--r-rgb:224,125,108;--o-rgb:229,138,85;--w-rgb:221,176,110;
+  --g-hi:#a6e3cb;--g-lo:#2f9673;--o-hi:#f0b892;--o-lo:#c9693a;--r-lo:#b85445;--gk:.55}
+:root[data-theme=mono]{--profit:#eef0f2;--loss:#9a9ca3;--accent:#e6e7ea;--warn:#c9cbd0;
+  --g-rgb:238,240,242;--r-rgb:154,156,163;--o-rgb:230,231,234;--w-rgb:201,203,208;
+  --g-hi:#ffffff;--g-lo:#b9bcc2;--o-hi:#ffffff;--o-lo:#a9acb3;--r-lo:#6e7077;--gk:.45}
+:root[data-theme=neon]{--profit:#3ee08f;--loss:#ff6a4d;--accent:#ff7a2a;--warn:#ffb347;
+  --g-rgb:62,224,143;--r-rgb:255,106,77;--o-rgb:255,122,42;--w-rgb:255,179,71;
+  --g-hi:#9bf5c4;--g-lo:#17a862;--o-hi:#ffb27a;--o-lo:#e8500a;--r-lo:#d9381e;--gk:1}
+
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;min-height:100vh;color:var(--text);font:13px/1.4 var(--sans);
+  background:radial-gradient(600px 420px at 0% 0%,rgba(var(--o-rgb),calc(.13*var(--gk))),transparent 70%),
+             radial-gradient(560px 460px at 100% 100%,rgba(var(--g-rgb),calc(.10*var(--gk))),transparent 70%),var(--bg);background-attachment:fixed}
+.wrap{max-width:520px;margin:0 auto;padding:18px 16px 32px}
+header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+header h1{font-size:12px;font-weight:600;margin:0;flex:1;letter-spacing:.32em;text-transform:uppercase}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:5px 11px;border-radius:999px;background:var(--well);box-shadow:var(--inset);white-space:nowrap}
+.pill::before{content:'';width:6px;height:6px;border-radius:50%;background:#3a3c42}
+.pill.ok{color:var(--text)}.pill.ok::before{background:var(--profit);box-shadow:var(--glow-g)}
+.pill.bad{color:var(--loss)}.pill.bad::before{background:var(--loss);box-shadow:0 0 10px rgba(var(--r-rgb),calc(.7*var(--gk)))}
+.icon{background:linear-gradient(145deg,#1b1c20,#0f1013);border:0;color:var(--muted);border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:15px;box-shadow:4px 4px 10px rgba(0,0,0,.6),-1px -1px 3px rgba(255,255,255,.05)}
+.icon:hover{color:var(--text)}
+.card{position:relative;background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.015));border:1px solid var(--line);border-radius:24px;padding:16px 16px;margin-bottom:12px;box-shadow:var(--raise);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+label{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+textarea{width:100%;padding:10px 12px;background:var(--well);color:var(--text);border:0;border-radius:14px;box-shadow:var(--inset);font:13px var(--sans);resize:vertical}
+input,select{width:100%;height:40px;padding:0 12px;background:var(--well);color:var(--text);border:1px solid transparent;border-radius:14px;box-shadow:var(--inset);font:14px var(--mono);transition:border-color .15s,box-shadow .15s}
+input::placeholder{color:#4a4c52}
+input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(var(--o-rgb),calc(.55*var(--gk)));box-shadow:var(--inset),0 0 14px rgba(var(--o-rgb),calc(.25*var(--gk)))}
+input.bad{border-color:rgba(var(--r-rgb),calc(.7*var(--gk)))}
+.row{display:flex;gap:10px;margin-bottom:12px}.row>div{flex:1;min-width:0}
+.inline{display:flex;gap:6px}.inline input{flex:1}
+.btn{height:40px;padding:0 14px;border:0;background:linear-gradient(145deg,#1d1e22,#121316);color:var(--text);border-radius:14px;cursor:pointer;font:500 12px var(--sans);white-space:nowrap;box-shadow:4px 4px 10px rgba(0,0,0,.55),-1px -1px 2px rgba(255,255,255,.05)}
+.btn:hover{color:#fff;box-shadow:4px 4px 10px rgba(0,0,0,.55),-1px -1px 2px rgba(255,255,255,.05),0 0 0 1px rgba(255,255,255,.08)}
+.btn:active{box-shadow:var(--inset)}
+.btn.primary{width:100%;height:52px;border-radius:999px;font:600 13px var(--sans);letter-spacing:.22em;text-transform:uppercase;color:#1a0b02;
+  background:radial-gradient(120% 140% at 30% 0%,var(--o-hi) 0%,var(--accent) 45%,var(--o-lo) 100%);box-shadow:var(--glow-o),0 10px 30px rgba(var(--o-rgb),calc(.25*var(--gk)))}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.primary:disabled{filter:grayscale(1) brightness(.45);box-shadow:none;cursor:default;color:#888}
+.seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--well);box-shadow:var(--inset);height:40px}
+.seg button{flex:1;background:none;color:var(--muted);border:0;border-radius:999px;cursor:pointer;font:600 11px var(--sans);letter-spacing:.14em;text-transform:uppercase;transition:all .2s}
+.seg button:hover{color:var(--text)}
+.seg button.on.l{background:radial-gradient(120% 140% at 30% 0%,var(--g-hi),var(--profit) 50%,var(--g-lo));color:#04140b;box-shadow:var(--glow-g)}
+.seg button.on.s{background:radial-gradient(120% 140% at 30% 0%,var(--o-hi),var(--loss) 50%,var(--r-lo));color:#1a0602;box-shadow:0 0 18px rgba(var(--r-rgb),calc(.55*var(--gk)))}
+.seg button.on.n{background:linear-gradient(145deg,#2a2b30,#1a1b1f);color:var(--text);box-shadow:0 2px 6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
+.search{position:relative}
+.list{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:5;background:rgba(20,21,24,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--line);border-radius:16px;max-height:280px;overflow:auto;display:none;box-shadow:0 20px 40px rgba(0,0,0,.6);padding:4px}
+.list div{padding:8px 10px;cursor:pointer;display:flex;gap:10px;border-radius:10px}.list div:hover,.list div.sel{background:rgba(255,255,255,.06)}
+.list b{font:500 12px var(--mono);min-width:64px}.list span{color:var(--muted);font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.list i{margin-left:auto;font-style:normal;color:var(--muted);font:11px var(--mono)}
+.info{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px}
+.info b{color:var(--text);font-weight:500}
+.out{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.out div{background:var(--well);border-radius:16px;padding:10px 12px;box-shadow:var(--inset);min-width:0}
+.out small{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.16em}
+.out strong{display:block;font:500 15px var(--mono);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.out em{display:block;font-style:normal;color:var(--muted);font:11px var(--mono);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.out .big{grid-column:span 3;display:flex;align-items:center;gap:14px;padding:18px 16px;border-radius:20px;overflow:hidden;position:relative;
+  background:radial-gradient(90% 120% at 50% 130%,rgba(var(--g-rgb),calc(.28*var(--gk))),transparent 60%),var(--well)}
+.out .big small{flex:0 0 auto}
+.out .big em{display:inline;margin:0;flex:1}
+.out .big input.qty{width:130px;height:52px;flex:0 0 auto;font:500 30px var(--mono);text-align:center;color:var(--profit);text-shadow:0 0 16px rgba(var(--g-rgb),calc(.7*var(--gk)));background:rgba(0,0,0,.35);border-radius:16px}
+.out .big input.qty.man{color:var(--warn);text-shadow:0 0 16px rgba(var(--w-rgb),calc(.6*var(--gk)));border-color:rgba(var(--w-rgb),calc(.45*var(--gk)))}
+.out .big .btn{height:30px;padding:0 12px;border-radius:999px;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.pos{color:var(--profit);text-shadow:0 0 12px rgba(var(--g-rgb),calc(.45*var(--gk)))}.neg{color:var(--loss);text-shadow:0 0 12px rgba(var(--r-rgb),calc(.4*var(--gk)))}
+.warn{margin:10px 0 0;padding:0;list-style:none}
+.warn li{font-size:12px;padding:8px 12px;border-radius:12px;margin-top:6px;background:rgba(var(--w-rgb),calc(.08*var(--gk)));color:var(--warn);border:1px solid rgba(var(--w-rgb),calc(.15*var(--gk)))}
+.warn li.err{background:rgba(var(--r-rgb),calc(.09*var(--gk)));color:var(--loss);border-color:rgba(var(--r-rgb),calc(.2*var(--gk)))}
+.sent{margin:0 0 10px;padding:0;list-style:none;font:12px var(--mono)}
+.sent li{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.sent li span:last-child{margin-left:auto}
+.foot{font-size:10px;color:#55575d;margin-top:12px;text-align:center;letter-spacing:.02em}
+.hidden{display:none!important}
+.cmp{width:100%;border-collapse:collapse;font:12px var(--mono);margin-top:10px}
+.cmp th{font:9px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:right;padding:4px}
+.cmp th:first-child,.cmp td:first-child{text-align:left;font-family:var(--sans);white-space:normal}
+.cmp td{text-align:right;padding:6px 4px;white-space:nowrap;border-top:1px solid var(--line)}
+.cmp tr.tot td{font-weight:600}
+.chk{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:0;text-transform:none;color:var(--muted);margin-bottom:4px}
+.chk input{width:16px;height:16px;accent-color:var(--accent);box-shadow:none}
+.minseg{display:inline-flex;gap:3px;padding:3px;border-radius:999px;background:var(--well);box-shadow:var(--inset)}
+.minseg button{background:none;color:var(--muted);border:0;border-radius:999px;padding:5px 12px;font:11px var(--mono);cursor:pointer}
+.minseg button.on{background:linear-gradient(145deg,#2a2b30,#1a1b1f);color:var(--text);box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.muted{color:var(--muted)}
+.hold{margin-top:10px;background:var(--well);border-radius:16px;padding:10px 12px;box-shadow:var(--inset)}
+.hold .row{margin:0 0 6px;align-items:center}
+.hold small{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.16em;margin-bottom:4px}
+.hold input#nights{height:34px;width:100%}
+.hold strong{display:block;font:500 15px var(--mono)}
+.hold em{display:block;font-style:normal;color:var(--muted);font:11px var(--mono);margin-top:2px}
+#alt>.row:first-child>div:first-child{font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase}
+@media (max-width:420px){.out{grid-template-columns:1fr 1fr}.out .big{grid-column:span 2;flex-wrap:wrap}.row{flex-wrap:wrap}}
+
+/* Long/Short — слайдер: ползунок переезжает, можно смахнуть */
+#side{position:relative;touch-action:pan-y}
+#side::before{content:'';position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;
+  background:radial-gradient(120% 140% at 30% 0%,var(--g-hi),var(--profit) 50%,var(--g-lo));box-shadow:var(--glow-g);
+  transition:transform .3s cubic-bezier(.3,1.3,.5,1),background .25s,box-shadow .25s}
+#side.short::before{transform:translateX(calc(100% + 4px));background:radial-gradient(120% 140% at 30% 0%,var(--o-hi),var(--loss) 50%,var(--r-lo));box-shadow:0 0 18px rgba(var(--r-rgb),calc(.55*var(--gk)))}
+#side button,#side button.on.l,#side button.on.s{position:relative;z-index:1;background:none;box-shadow:none;transition:color .25s}
+#side button.on.l{color:#04140b}#side button.on.s{color:#1a0602}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Калькулятор позиции</h1>
+    <button class="icon" id="gear" title="Настройки">⚙</button>
+  </header>
+
+  <!-- Настройки -->
+  <div class="card hidden" id="settings">
+    <div class="row">
+      <div><label>Депозит, ₽</label><input id="sDep" inputmode="decimal"></div>
+      <div><label>Лимит на сделку, %</label><input id="sRiskT" inputmode="decimal"></div>
+      <div><label>Суммарный, %</label><input id="sRiskA" inputmode="decimal"></div>
+    </div>
+    <div class="row">
+      <div><label>Фьючерсы: брокер, ₽ за контракт</label><input id="sCommFut" inputmode="decimal"></div>
+      <div><label>Биржевой сбор фьючерсов, %</label><input id="sExchFut" inputmode="decimal"></div>
+      <div><label>Акции: комиссия, % за сторону</label><input id="sCommStk" inputmode="decimal"></div>
+    </div>
+    <div class="row">
+      <div><label>РЕПО шорта акций, % год.</label><input id="sRepoShort" inputmode="decimal"></div>
+      <div><label>Покупка акций в долг, % год.</label><input id="sRepoLong" inputmode="decimal"></div>
+      <div><label>Плата за плечо фьюч., % от ГО год.</label><input id="sFutLev" inputmode="decimal"></div>
+    </div>
+    <div class="row" style="margin:0"><button class="btn" id="sSave">Сохранить</button><span class="info" id="sMsg" style="margin:8px 0 0 4px"></span></div>
+  </div>
+
+  <!-- Инструмент -->
+  <div class="card">
+    <div class="search">
+      <label>Тикер — код или название</label>
+      <input id="ticker" autocomplete="off" placeholder="загрузка списка MOEX…" disabled>
+      <div class="list" id="list"></div>
+    </div>
+    <div class="info" id="tinfo"></div>
+  </div>
+
+  <!-- Ввод -->
+  <div class="card">
+    <div class="row">
+      <div><label>Вход</label><div class="inline"><input id="entry" inputmode="decimal"><button class="btn" id="cur" title="Подставить последнюю цену">текущая</button></div></div>
+      <div><label>Направление</label><div class="seg" id="side"><button data-v="L" class="on l">Long</button><button data-v="S">Short</button></div></div>
+    </div>
+    <div class="row">
+      <div><label>Stop-loss</label><input id="sl" inputmode="decimal"></div>
+      <div><label>Take-profit</label><input id="tp" inputmode="decimal"></div>
+    </div>
+    <div class="row" style="margin:0">
+      <div><label>Риск</label><div class="seg" id="rmode"><button data-v="rub" class="on n">₽</button><button data-v="pct">% депозита</button></div></div>
+      <div><label id="rlabel">Риск, ₽</label><input id="risk" inputmode="decimal"></div>
+    </div>
+  </div>
+
+  <!-- Результат -->
+  <div class="card">
+    <div class="out">
+      <div class="big"><small>Объём</small><input id="qtyIn" class="qty" inputmode="numeric" title="Посчитан от риска. Впишите своё число, чтобы задать объём вручную"><em id="oUnit"></em><button class="btn hidden" id="qtyReset" title="Вернуть объём, посчитанный от риска">по риску</button></div>
+      <div><small>Риск факт</small><strong id="oRisk">—</strong><em id="oRiskP"></em></div>
+      <div><small>R:R</small><strong id="oRR">—</strong><em id="oPts"></em></div>
+      <div><small>Потенциал</small><strong id="oPot" class="pos">—</strong><em id="oFee"></em></div>
+      <div><small>ГО</small><strong id="oGO">—</strong><em id="oGOP"></em></div>
+      <div><small>Депозит</small><strong id="oDep">—</strong><em id="oDepSrc"></em></div>
+      <div><small>Комиссия</small><strong id="oComm">—</strong><em>вход + выход</em></div>
+    </div>
+    <div class="hold">
+      <div class="row">
+        <div style="flex:0 0 96px"><small>Держу, ночей</small><input id="nights" inputmode="numeric" value="1"></div>
+        <div><small>Удержание</small><strong id="oHold">—</strong><em id="oHoldNote"></em></div>
+      </div>
+      <label class="chk" id="levWrap"><input type="checkbox" id="levOn"> на ГО фьючерса не хватает рублей — плачу за плечо</label>
+      <label class="chk" id="marginWrap"><input type="checkbox" id="marginOn"> акции покупаю в долг</label>
+    </div>
+    <ul class="warn" id="warn"></ul>
+  </div>
+
+  <!-- Фьючерс вместо акции -->
+  <div class="card hidden" id="alt">
+    <div class="row" style="align-items:center;margin-bottom:4px">
+      <div style="font-weight:500">Фьючерс вместо акции</div>
+      <div style="flex:0 0 auto" class="minseg" id="altSeg"></div>
+    </div>
+    <div class="info" id="altInfo" style="margin-top:0"></div>
+    <table class="cmp"><thead><tr><th></th><th>Акция</th><th>Фьючерс</th><th>Фьючерс выгоднее на</th></tr></thead><tbody id="cmpBody"></tbody></table>
+    <div class="info" id="altBasis"></div>
+    <div class="info" id="altSum" style="color:var(--text)"></div>
+    <button class="btn" id="toFut" style="margin-top:8px">Считать фьючерсом</button>
+  </div>
+
+  <div class="foot">Цены MOEX ISS без подписки — с задержкой ~15 минут. Настройки хранятся только в этом браузере.</div>
+</div>
+
+<script>
+'use strict';
+const ISS = 'https://iss.moex.com/iss';
+const $ = id => document.getElementById(id);
+const num = v => { const n = Number(String(v ?? '').replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? n : NaN; };
+const rub = (x, sign) => (sign && x > 0 ? '+' : '') + Math.round(x).toLocaleString('ru-RU') + ' ₽';
+const pct = x => (x * 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + '%';
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('calcfree.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('calcfree.' + k, JSON.stringify(v)); } catch (e) {} },
+};
+
+// ------------------------------------------------------------------ состояние
+const S = {
+  list: [], bySecid: {}, spec: null, last: null, lastTime: '',
+  side: 'L', rmode: store.get('rmode', 'pct'),
+  journal: null,                     // в этой версии журнала нет
+  cfg: Object.assign({ dep: '', riskT: '1', riskA: '5', commFut: '0.45', exchFut: '0.0066', commStk: '0.06', repoShort: '6', repoLong: '14.65', futLev: '20' }, store.get('cfg', {})),
+};
+
+// ------------------------------------------------------------------ MOEX: список инструментов
+async function iss(path) {
+  const r = await fetch(ISS + path + (path.includes('?') ? '&' : '?') + 'iss.meta=off');
+  if (!r.ok) throw new Error('MOEX ISS: HTTP ' + r.status);
+  return r.json();
+}
+const rows = b => b ? b.data.map(r => Object.fromEntries(b.columns.map((c, i) => [c, r[i]]))) : [];
+
+async function loadList() {
+  const today = new Date().toISOString().slice(0, 10);
+  const [f, s] = await Promise.all([
+    iss('/engines/futures/markets/forts/securities.json?iss.only=securities,marketdata' +
+        '&securities.columns=SECID,SHORTNAME,MINSTEP,STEPPRICE,INITIALMARGIN,LASTTRADEDATE,DECIMALS,PREVSETTLEPRICE,ASSETCODE,LOTVOLUME,BUYSELLFEE' +
+        '&marketdata.columns=SECID,LAST,UPDATETIME'),
+    iss('/engines/stock/markets/shares/boards/TQBR/securities.json?iss.only=securities,marketdata' +
+        '&securities.columns=SECID,SHORTNAME,LOTSIZE,MINSTEP,DECIMALS,PREVPRICE' +
+        '&marketdata.columns=SECID,LAST,LCURRENTPRICE,UPDATETIME'),
+  ]);
+  const mdF = Object.fromEntries(rows(f.marketdata).map(r => [r.SECID, r]));
+  const mdS = Object.fromEntries(rows(s.marketdata).map(r => [r.SECID, r]));
+  const fut = rows(f.securities).filter(r => r.LASTTRADEDATE >= today && r.MINSTEP > 0 && r.STEPPRICE > 0)
+    .sort((a, b) => String(a.ASSETCODE).localeCompare(String(b.ASSETCODE)) || a.LASTTRADEDATE.localeCompare(b.LASTTRADEDATE))
+    .map(r => ({ secid: r.SECID, name: r.SHORTNAME, type: 'F', minstep: r.MINSTEP, pv: r.STEPPRICE / r.MINSTEP, lot: 1,
+      im: r.INITIALMARGIN, dec: r.DECIMALS, exp: r.LASTTRADEDATE, asset: r.ASSETCODE, lotv: r.LOTVOLUME, exfee: r.BUYSELLFEE,
+      last: (mdF[r.SECID] || {}).LAST || r.PREVSETTLEPRICE, time: (mdF[r.SECID] || {}).UPDATETIME || '' }));
+  const stk = rows(s.securities).filter(r => r.LOTSIZE > 0)
+    .map(r => ({ secid: r.SECID, name: r.SHORTNAME, type: 'S', minstep: r.MINSTEP, pv: r.LOTSIZE, lot: r.LOTSIZE,
+      dec: r.DECIMALS, last: (mdS[r.SECID] || {}).LAST || (mdS[r.SECID] || {}).LCURRENTPRICE || r.PREVPRICE,
+      time: (mdS[r.SECID] || {}).UPDATETIME || '' }));
+  S.list = fut.concat(stk);
+  S.bySecid = Object.fromEntries(S.list.map(x => [x.secid, x]));
+}
+
+/** Свежая цена одного инструмента. */
+async function refreshPrice(spec) {
+  const path = spec.type === 'F'
+    ? '/engines/futures/markets/forts/securities/' + spec.secid + '.json?iss.only=marketdata&marketdata.columns=SECID,LAST,UPDATETIME'
+    : '/engines/stock/markets/shares/boards/TQBR/securities/' + spec.secid + '.json?iss.only=marketdata&marketdata.columns=SECID,LAST,LCURRENTPRICE,UPDATETIME';
+  try {
+    const md = rows((await iss(path)).marketdata)[0] || {};
+    const p = md.LAST || md.LCURRENTPRICE;
+    if (p) { spec.last = p; spec.time = md.UPDATETIME || ''; }
+  } catch (e) { /* остаётся цена из списка */ }
+}
+
+// ------------------------------------------------------------------ поиск тикера
+let hits = [], hi = -1;
+function search(q) {
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  const score = x => {
+    const s = x.secid.toLowerCase(), n = String(x.name).toLowerCase();
+    if (s === q) return 0;
+    if (s.startsWith(q)) return 1;
+    if (n.startsWith(q)) return 2;
+    if (n.includes(q) || s.includes(q)) return 3;
+    return 9;
+  };
+  return S.list.map(x => [score(x), x]).filter(z => z[0] < 9).sort((a, b) => a[0] - b[0]).slice(0, 30).map(z => z[1]);
+}
+function renderList() {
+  const el = $('list');
+  el.innerHTML = '';
+  hits.forEach((x, i) => {
+    const d = document.createElement('div');
+    if (i === hi) d.className = 'sel';
+    d.innerHTML = '<b></b><span></span><i></i>';
+    d.children[0].textContent = x.secid;
+    d.children[1].textContent = x.name;
+    d.children[2].textContent = x.type === 'F' ? 'фьюч ' + x.exp.slice(5).split('-').reverse().join('.') : 'акция';
+    d.onmousedown = ev => { ev.preventDefault(); pick(x); };
+    el.appendChild(d);
+  });
+  el.style.display = hits.length ? 'block' : 'none';
+}
+async function pick(x) {
+  S.spec = x; S.qtyMan = null;
+  $('ticker').value = x.secid;
+  hits = []; renderList();
+  store.set('ticker', x.secid);
+  showInfo();
+  await refreshPrice(x);
+  showInfo();
+  if (!$('entry').value && x.last) $('entry').value = x.last;
+  calc();
+}
+function showInfo() {
+  const x = S.spec;
+  if (!x) { $('tinfo').textContent = ''; return; }
+  const parts = [x.name,
+    x.type === 'F' ? 'шаг ' + x.minstep + ' = ' + +(x.pv * x.minstep).toFixed(5) + ' ₽' : 'лот ' + x.lot + ', шаг ' + x.minstep,
+    x.type === 'F' ? 'ГО ' + rub(x.im) : ''];
+  $('tinfo').innerHTML = '';
+  $('tinfo').append(parts.filter(Boolean).join(' · ') + ' · последняя ');
+  const b = document.createElement('b'); b.textContent = x.last ? fmtPrice(x.last) : '—'; $('tinfo').append(b);
+  if (x.time) $('tinfo').append(' (' + x.time.slice(0, 5) + ', ~15 мин задержки)');
+}
+function fmtPrice(p) {
+  const d = S.spec && S.spec.dec != null ? S.spec.dec : 2;
+  return Number(p).toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+// ------------------------------------------------------------------ настройки
+function deposit() { return num(S.cfg.dep); }
+function limitTrade() { return num(S.cfg.riskT) / 100; }
+function limitTotal() { return num(S.cfg.riskA) / 100; }
+/** Комиссии и ставки из ⚙ (в ⚙ — проценты, здесь — доли). */
+function fees() {
+  const c = S.cfg, v = (x, d, k) => { const n = num(x); return isFinite(n) ? n * k : d; };
+  return { commFut: v(c.commFut, 0.45, 1), exchFut: v(c.exchFut, 0.000066, 0.01), commStk: v(c.commStk, 0.0006, 0.01),
+    repoShort: v(c.repoShort, 0.06, 0.01), repoLong: v(c.repoLong, 0.1465, 0.01), futLev: v(c.futLev, 0.2, 0.01) };
+}
+
+// ------------------------------------------------------------------ расчёт
+function calc() {
+  $('alt').classList.add('hidden');
+  const x = S.spec, warn = [];
+  const entry = num($('entry').value), sl = num($('sl').value), tp = num($('tp').value);
+  const dep = deposit(), lt = limitTrade(), la = limitTotal();
+  const riskIn = num($('risk').value);
+  const budget = S.rmode === 'pct' ? dep * riskIn / 100 : riskIn;
+  const res = S.res = { ok: false };
+  ['entry', 'sl', 'tp'].forEach(id => $(id).classList.remove('bad'));
+
+  $('oDep').textContent = isFinite(dep) && dep > 0 ? rub(dep) : '—';
+  $('oDepSrc').textContent = dep > 0 ? 'из ⚙' : 'укажите в ⚙';
+  const openRisk = NaN;
+
+  const set = (id, t, cls) => { $(id).textContent = t; if (cls !== undefined) $(id).className = cls; };
+  const clear = () => { ['oRisk', 'oRR', 'oPot', 'oGO', 'oComm'].forEach(id => set(id, '—')); set('oHold', '—'); set('oHoldNote', ''); if (!S.qtyMan) $('qtyIn').value = ''; $('qtyIn').classList.toggle('man', !!S.qtyMan); $('qtyReset').classList.toggle('hidden', !S.qtyMan); ['oUnit', 'oRiskP', 'oPts', 'oFee', 'oGOP'].forEach(id => set(id, '')); };
+
+  if (!x) { clear(); if ($('ticker').value.trim() && S.list.length) warn.push(['Выберите тикер из списка под полем', '']); return render(warn); }
+  if (!(entry > 0)) { clear(); return render(warn); }
+  if (!(sl > 0)) { clear(); warn.push(['Укажите стоп-лосс', '']); return render(warn); }
+
+  const dir = S.side === 'S' ? -1 : 1;
+  if ((sl - entry) * dir >= 0) { $('sl').classList.add('bad'); warn.push(['Стоп не с той стороны: для ' + (dir > 0 ? 'Long стоп ниже входа' : 'Short стоп выше входа'), 'err']); }
+  if (isFinite(tp) && tp > 0 && (tp - entry) * dir <= 0) { $('tp').classList.add('bad'); warn.push(['Тейк не с той стороны входа', 'err']); }
+  [['entry', entry], ['sl', sl], ['tp', tp]].forEach(([id, v]) => {
+    if (v > 0 && Math.abs(Math.round(v / x.minstep) * x.minstep - v) > x.minstep * 1e-6) warn.push([id.toUpperCase().replace('ENTRY', 'Вход') + ' не кратен шагу цены ' + x.minstep, '']);
+  });
+
+  const perUnit = Math.abs(entry - sl) * x.pv;          // ₽ риска на 1 контракт/лот
+  if (!(budget > 0) && !S.qtyMan) { clear(); warn.push(['Укажите риск' + (S.rmode === 'pct' && !(dep > 0) ? ' и депозит' : ''), '']); return render(warn); }
+  const autoQty = perUnit > 0 && budget > 0 ? Math.floor(budget / perUnit + 1e-9) : 0;
+  const qty = S.qtyMan || autoQty;                     // ручной объём важнее расчётного
+  const risk = qty * perUnit;
+  const f = fees();
+  const feeSide = p => x.type === 'F' ? qty * (f.commFut + p * x.pv * f.exchFut) : p * x.lot * qty * f.commStk;
+  const go = x.type === 'F' ? x.im * qty : entry * x.lot * qty;
+  const pot = isFinite(tp) && tp > 0 ? (tp - entry) * dir * x.pv * qty : NaN;
+  const rr = isFinite(tp) && tp > 0 ? Math.abs(tp - entry) / Math.abs(entry - sl) : NaN;
+  const fee = feeSide(entry) + feeSide(isFinite(tp) && tp > 0 ? tp : entry);
+
+  if (document.activeElement !== $('qtyIn')) $('qtyIn').value = qty || 0;
+  $('qtyIn').classList.toggle('man', !!S.qtyMan);
+  $('qtyReset').classList.toggle('hidden', !S.qtyMan);
+  set('oUnit', (x.type === 'F' ? 'контр.' : 'лот' + (qty === 1 ? '' : 'ов') + ' · ' + (qty * x.lot).toLocaleString('ru-RU') + ' шт.') +
+    (S.qtyMan && budget > 0 ? ' · от риска ' + autoQty : ''));
+  set('oRisk', rub(risk));
+  set('oRiskP', dep > 0 ? pct(risk / dep) + ' депозита' : '');
+  set('oRR', isFinite(rr) ? rr.toFixed(2) : '—');
+  set('oPts', 'стоп ' + (+Math.abs(entry - sl).toFixed(6)).toLocaleString('ru-RU') + ' п.');
+  set('oPot', isFinite(pot) ? rub(pot, true) : '—', pot < 0 ? 'neg' : 'pos');
+  set('oFee', qty && isFinite(pot) ? 'чистыми ' + rub(pot - fee, true) : '');
+  set('oComm', qty ? '~' + rub(fee) : '—');
+  set('oGO', rub(go));
+  set('oGOP', dep > 0 ? pct(go / dep) + ' депозита' : '');
+
+  // Удержание: сколько стоит держать позицию через ночь
+  const nN = Math.max(0, Math.floor(num($('nights').value) || 0));
+  let night = 0, why;
+  if (x.type === 'F') {
+    if ($('levOn').checked) { night = go * f.futLev / 365; why = 'плата за плечо ~' + pct(f.futLev) + ' от ГО годовых'; }
+    else why = 'ГО из своих денег — перенос бесплатный';
+  } else {
+    const notional = entry * x.lot * qty;
+    if (dir < 0) { night = notional * f.repoShort / 365; why = 'РЕПО шорта ' + pct(f.repoShort) + ' годовых от суммы'; }
+    else if ($('marginOn').checked) { night = notional * f.repoLong / 365; why = 'покупка в долг ' + pct(f.repoLong) + ' годовых'; }
+    else why = 'на свои деньги — перенос бесплатный';
+  }
+  set('oHold', qty ? rub(night) + ' за ночь' + (nN > 1 ? ' · ' + rub(night * nN) + ' за ' + nN + ' ноч.' : '') : '—', night > 0.5 ? 'neg' : '');
+  set('oHoldNote', qty ? why : '');
+  $('levWrap').style.display = x.type === 'F' ? '' : 'none';
+  $('marginWrap').style.display = x.type === 'S' && dir > 0 ? '' : 'none';
+
+  if (S.qtyMan && budget > 0 && risk > budget + 0.5) warn.push(['Объём вписан вручную: риск ' + rub(risk) + ' больше заданного ' + rub(budget), '']);
+  if (!qty) warn.push(['Риска не хватает даже на 1 ' + (x.type === 'F' ? 'контракт' : 'лот') + ' (нужно ' + rub(perUnit) + ')', 'err']);
+  if (dep > 0 && lt > 0 && risk > dep * lt + 0.5) warn.push(['Риск ' + pct(risk / dep) + ' больше лимита на сделку ' + pct(lt), 'err']);
+  if (dep > 0 && lt > 0 && budget > dep * lt + 0.5 && risk <= dep * lt + 0.5) warn.push(['Заданный риск больше лимита на сделку ' + pct(lt), '']);
+  if (dep > 0 && la > 0 && isFinite(openRisk) && openRisk + risk > dep * la + 0.5)
+    warn.push(['Суммарный риск с открытыми ' + pct((openRisk + risk) / dep) + ' > лимита ' + pct(la), 'err']);
+  if (dep > 0 && go > dep) warn.push(['ГО больше депозита', 'err']);
+
+  Object.assign(res, { ok: qty > 0 && !warn.some(w => w[1] === 'err' && /не с той/.test(w[0])), qty, entry, sl, tp });
+  render(warn);
+  calcAlt(entry, sl, tp, S.qtyMan ? risk : budget, qty, dir);
+}
+// ------------------------------------------------------------------ фьючерс вместо акции
+// Код базового актива у фьючерса почти всегда = тикер акции; исключения — здесь.
+const ASSET_ALIAS = { GAZR: 'GAZP', SBRF: 'SBER', SBPR: 'SBERP' };
+const ALT = { list: [], pick: 0, conv: null };
+function futuresFor(stock) {
+  return S.list.filter(x => x.type === 'F' && x.lotv > 0 && (ASSET_ALIAS[x.asset] || x.asset) === stock.secid)
+    .sort((a, b) => a.exp.localeCompare(b.exp)).slice(0, 2);
+}
+function calcAlt(entry, sl, tp, budget, qty, dir) {
+  const x = S.spec, box = $('alt');
+  ALT.conv = null;
+  if (!x || x.type !== 'S') { box.classList.add('hidden'); return; }
+  ALT.list = futuresFor(x);
+  if (!ALT.list.length) {
+    box.classList.remove('hidden');
+    $('altSeg').innerHTML = ''; $('cmpBody').innerHTML = ''; $('altBasis').textContent = ''; $('altSum').textContent = '';
+    $('altInfo').textContent = 'На ' + x.secid + ' фьючерсов на MOEX нет.'; $('toFut').classList.add('hidden');
+    return;
+  }
+  $('toFut').classList.remove('hidden');
+  box.classList.remove('hidden');
+  if (ALT.pick >= ALT.list.length) ALT.pick = 0;
+  $('altSeg').innerHTML = '';
+  ALT.list.forEach((f, i) => { const b = document.createElement('button'); b.textContent = f.secid; if (i === ALT.pick) b.className = 'on';
+    b.onclick = () => { ALT.pick = i; calc(); }; $('altSeg').appendChild(b); });
+  const f = ALT.list[ALT.pick];
+  $('levWrap').style.display = '';                       // для сравнения с фьючерсом нужна и у акции
+  if (!(entry > 0) || !(sl > 0) || !(budget > 0) || !x.last || !f.last) {
+    $('altInfo').textContent = f.name + ' · ' + f.lotv + ' акций в контракте'; $('cmpBody').innerHTML = '';
+    $('altBasis').textContent = ''; $('altSum').textContent = ''; return;
+  }
+  const r = fees(), N = Math.max(0, Math.floor(num($('nights').value) || 0));
+  const basis = f.last - x.last * f.lotv;                          // ₽ на контракт сверх «акции × лот»
+  const conv = p => Math.round((p * f.lotv + basis) / f.minstep) * f.minstep;
+  const n = Math.floor(budget / (Math.abs(entry - sl) * f.lotv) + 1e-9);
+  const eF = conv(entry), sF = conv(sl), tF = tp > 0 ? conv(tp) : NaN;
+  ALT.conv = { f, entry: eF, sl: sF, tp: tF };
+  // акция
+  const notional = entry * x.lot * qty;
+  const feeS = notional * r.commStk * 2;
+  const nightS = dir < 0 ? notional * r.repoShort / 365 : ($('marginOn').checked ? notional * r.repoLong / 365 : 0);
+  // фьючерс
+  const feeF = n * 2 * (r.commFut + (f.exfee || eF * r.exchFut));
+  const goF = (f.im || 0) * n;
+  const nightF = $('levOn').checked ? goF * r.futLev / 365 : 0;
+  const tot = (fe, ni) => fe + ni * N;
+  const row = (t, a, b, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + t + '</td><td>' + rub(a) + '</td><td>' + rub(b) +
+    '</td><td class="' + (a - b > 0.5 ? 'pos' : a - b < -0.5 ? 'neg' : '') + '">' + (Math.abs(a - b) < 0.5 ? '0 ₽' : (a - b < 0 ? '−' : '') + rub(Math.abs(a - b))) + '</td></tr>';
+  $('altInfo').textContent = f.name + ' · ' + n + ' контр. по ' + f.lotv + ' акций · вход ' + eF + ' · стоп ' + sF +
+    (tF > 0 ? ' · тейк ' + tF : '') + ' · ГО ' + rub(goF) + (n * f.lotv !== qty * x.lot ? ' · акций: ' + (n * f.lotv) + ' против ' + (qty * x.lot) : '');
+  $('cmpBody').innerHTML =
+    row('На сделку: комиссия вход+выход', feeS, feeF) +
+    row('За ночь: ' + (dir < 0 ? 'РЕПО шорта' : $('marginOn').checked ? 'РЕПО лонга в долг' : 'перенос'), nightS, nightF) +
+    row('Итого за ' + N + ' ноч.', tot(feeS, nightS), tot(feeF, nightF), 'tot');
+  const days = Math.max(1, Math.round((Date.parse(f.exp) - Date.now()) / 864e5));
+  const bNight = basis * n / days;
+  $('altBasis').textContent = 'Базис: фьючерс ' + (basis >= 0 ? 'дороже' : 'дешевле') + ' акции на ' + rub(Math.abs(basis)) + ' за контракт (' +
+    days + ' дн. до экспирации) — ~' + rub(Math.abs(bNight)) + ' в день, для ' + (dir < 0 ? 'шорта' : 'лонга') + ' ' +
+    ((dir < 0) === (basis >= 0) ? 'в вашу пользу' : 'против вас') + '. Это не комиссия, а цена денег внутри фьючерса.';
+  const dDeal = feeS - feeF, dNight = nightS - nightF;
+  const carry = (dir < 0 ? 1 : -1) * bNight;                         // базис: + для шорта, − для лонга
+  $('altSum').textContent = 'Фьючерс ' + (dDeal >= 0 ? 'дешевле' : 'дороже') + ' на сделке на ' + rub(Math.abs(dDeal)) +
+    ', на переносе — на ' + rub(Math.abs(dNight)) + ' за ночь ' + (dNight >= 0 ? 'дешевле' : 'дороже') +
+    '. С учётом базиса за ' + N + ' ноч. разница ' + rub(dDeal + (dNight + carry) * N, true) + ' в пользу ' +
+    (dDeal + (dNight + carry) * N >= 0 ? 'фьючерса' : 'акции') + '.';
+}
+function useFutures() {
+  const c = ALT.conv; if (!c) return;
+  S.spec = c.f; S.qtyMan = null; $('ticker').value = c.f.secid; store.set('ticker', c.f.secid);
+  $('entry').value = c.entry; $('sl').value = c.sl; $('tp').value = c.tp > 0 ? c.tp : '';
+  showInfo(); calc();
+}
+
+function render(warn) {
+  $('warn').innerHTML = '';
+  warn.forEach(([t, c]) => { const li = document.createElement('li'); li.textContent = t; if (c) li.className = c; $('warn').appendChild(li); });
+}
+
+// ------------------------------------------------------------------ события
+function seg(id, onPick) {
+  $(id).querySelectorAll('button').forEach(b => b.onclick = () => {
+    $(id).querySelectorAll('button').forEach(z => z.className = '');
+    onPick(b.dataset.v, b);
+  });
+}
+seg('side', (v, b) => { S.side = v; b.className = 'on ' + v.toLowerCase(); $('side').classList.toggle('short', v === 'S'); calc(); });
+// Long/Short: смахивание по слайдеру
+(function () {
+  const el = $('side'); let x0 = null, swiped = false;
+  el.addEventListener('pointerdown', e => { x0 = e.clientX; swiped = false; });
+  el.addEventListener('pointerup', e => {
+    if (x0 == null) return; const dx = e.clientX - x0; x0 = null;
+    if (Math.abs(dx) > 18) { swiped = true; el.querySelector('button[data-v="' + (dx > 0 ? 'S' : 'L') + '"]').click(); }
+  });
+  el.addEventListener('click', e => { if (swiped && e.isTrusted) { swiped = false; e.stopPropagation(); } }, true);
+})();
+
+seg('rmode', (v, b) => {
+  const dep = deposit(), cur = num($('risk').value);
+  if (v !== S.rmode && dep > 0 && cur > 0) $('risk').value = v === 'pct' ? +(cur / dep * 100).toFixed(3) : Math.round(cur * dep / 100);
+  S.rmode = v; store.set('rmode', v); b.className = 'on n'; setRiskLabel(); calc();
+});
+function setRiskLabel() {
+  $('rlabel').textContent = S.rmode === 'pct' ? 'Риск, % депозита' : 'Риск, ₽';
+  $('rmode').querySelectorAll('button').forEach(z => z.className = z.dataset.v === S.rmode ? 'on n' : '');
+}
+['entry', 'sl', 'tp', 'risk'].forEach(id => $(id).addEventListener('input', () => { if (id === 'risk') { store.set('risk', $('risk').value); S.qtyMan = null; } calc(); }));
+// Объём вручную: пустое поле или 0 — снова считать от риска
+$('qtyIn').addEventListener('input', () => { const v = Math.floor(num($('qtyIn').value)); S.qtyMan = v > 0 ? v : null; calc(); });
+$('qtyIn').addEventListener('blur', calc);
+$('qtyIn').addEventListener('focus', () => $('qtyIn').select());
+$('qtyReset').addEventListener('click', () => { S.qtyMan = null; calc(); });
+$('cur').onclick = async () => { if (!S.spec) return; await refreshPrice(S.spec); showInfo(); if (S.spec.last) $('entry').value = S.spec.last; calc(); };
+$('toFut').onclick = useFutures;
+$('nights').value = store.get('nights', '1');
+$('levOn').checked = store.get('levOn', true);
+$('marginOn').checked = store.get('marginOn', false);
+['nights', 'levOn', 'marginOn'].forEach(id => $(id).addEventListener('input', () => {
+  store.set(id, $(id).type === 'checkbox' ? $(id).checked : $(id).value); calc(); }));
+
+const tk = $('ticker');
+tk.addEventListener('input', () => { hits = search(tk.value); hi = hits.length ? 0 : -1; renderList(); });
+tk.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { hi = Math.min(hi + 1, hits.length - 1); renderList(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { hi = Math.max(hi - 1, 0); renderList(); e.preventDefault(); }
+  else if (e.key === 'Enter') { const q = tk.value.trim().toUpperCase(), x = hits[hi] || S.list.find(z => z.secid.toUpperCase() === q); if (x) pick(x); e.preventDefault(); }
+  else if (e.key === 'Escape') { hits = []; renderList(); }
+});
+tk.addEventListener('focus', () => tk.select());
+// Ушли из поля, не выбрав из списка, — берём лучшее совпадение
+tk.addEventListener('blur', () => setTimeout(() => {
+  const q = tk.value.trim(), best = q && (!S.spec || q !== S.spec.secid) ? (hits[0] || search(q)[0]) : null;
+  hits = []; renderList();
+  if (best) pick(best); else if (S.spec) tk.value = S.spec.secid;
+}, 120));
+
+$('gear').onclick = () => $('settings').classList.toggle('hidden');
+const CFG_IDS = { dep: 'sDep', riskT: 'sRiskT', riskA: 'sRiskA', commFut: 'sCommFut', exchFut: 'sExchFut', commStk: 'sCommStk',
+  repoShort: 'sRepoShort', repoLong: 'sRepoLong', futLev: 'sFutLev' };
+$('sSave').onclick = () => {
+  Object.entries(CFG_IDS).forEach(([k, id]) => S.cfg[k] = $(id).value.trim());
+  store.set('cfg', S.cfg);
+  $('sMsg').textContent = 'Сохранено';
+  setTimeout(() => $('sMsg').textContent = '', 1500);
+  calc();
+};
+
+// ------------------------------------------------------------------ старт
+(async function init() {
+  Object.entries(CFG_IDS).forEach(([k, id]) => $(id).value = S.cfg[k]);
+  $('risk').value = store.get('risk', S.rmode === 'pct' ? '1' : '');
+  setRiskLabel();
+  if (!(deposit() > 0)) $('settings').classList.remove('hidden');
+  try {
+    await loadList();
+    tk.disabled = false; tk.placeholder = 'RIZ6, Si, Газпром…';
+    const last = store.get('ticker', '');
+    if (last && S.bySecid[last]) pick(S.bySecid[last]);
+  } catch (e) {
+    tk.placeholder = 'MOEX недоступна: ' + e.message;
+  }
+  calc();
+})();
+</script>
+</body>
+</html>

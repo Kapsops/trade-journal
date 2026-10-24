@@ -16,7 +16,7 @@
 
 | Приглушённая | Неон | Монохром |
 |:---:|:---:|:---:|
-| <img src="docs/theme-muted.png" alt="Тема «Приглушённая»"> | <img src="docs/theme-neon.png" alt="Тема «Неон»"> | <img src="docs/theme-mono.png" alt="Тема «Монохром»"> |
+| <img src="docs/theme-muted.png" width="260" alt="Тема «Приглушённая»"> | <img src="docs/theme-neon.png" width="260" alt="Тема «Неон»"> | <img src="docs/theme-mono.png" width="260" alt="Тема «Монохром»"> |
 | мягкий изумруд и персик — по умолчанию | яркий неон | белая подсветка без цвета, глаза не устают |
 
 ## Что умеет

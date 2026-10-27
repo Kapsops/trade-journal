@@ -189,6 +189,7 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
   <header>
     <h1 id="title">Открытые</h1>
     <div class="stamp" id="stamp"></div>
+    <button class="icon hidden" id="addBtn" title="Добавить сделку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     <button class="icon" id="refresh" title="Обновить котировки"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
     <button class="icon" id="gear" title="Настройки"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </header>
@@ -270,7 +271,10 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
     </div>
     </div>
 
-    <div class="sect"><h2>Тема</h2><span>версия 23.10 · 9</span></div>
+    <div class="sect"><h2>Последние события</h2><span>все устройства</span></div>
+    <div class="panel" id="logList"></div>
+
+    <div class="sect"><h2>Тема</h2><span>версия 27.10 · 10</span></div>
     <div class="panel pad">
       <div class="seg" id="theme" style="margin:0"><button data-t="mono">Монохром</button><button data-t="emerald">Приглушённая</button><button data-t="neon">Неон</button></div>
     </div>
@@ -397,7 +401,7 @@ async function apiPost(action, data, noReload) {
   const u = S.cfg.url + (S.cfg.url.includes('?') ? '&' : '?') + qs({ key: S.cfg.key, token });
   let j = null;
   try {
-    const r = await fetch(u, { method: 'POST', body: JSON.stringify(Object.assign({ key: S.cfg.key, action, token }, data)) });
+    const r = await fetch(u, { method: 'POST', body: JSON.stringify(Object.assign({ key: S.cfg.key, action, token, dev: DEV }, data)) });
     j = await r.json();
   } catch (e) { /* ответ потерялся — проверим ниже */ }
   if (!j || !('snapshot' in j)) {
@@ -434,8 +438,9 @@ function show(v) {
   ['setup', 'open', 'orders', 'calc', 'stats'].forEach(x => $('v-' + x).classList.toggle('hidden', x !== v));
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   document.body.classList.toggle('tab-calc', v === 'calc');
+  $('addBtn').classList.toggle('hidden', v !== 'open');
   $('title').textContent = TITLES[v];
-  if (v === 'setup') { $('cUrl').value = S.cfg.url; $('cKey').value = S.cfg.key; fillSettings(); }
+  if (v === 'setup') { $('cUrl').value = S.cfg.url; $('cKey').value = S.cfg.key; fillSettings(); renderLog(); }
   if (v === 'calc' && !$('calcFrame').src) $('calcFrame').src = 'calc.html';
   if (v === 'stats') renderStats();
   if ((v === 'open' || v === 'orders') && S.data && Date.now() - new Date(S.data.at) > 15000) load();
@@ -465,6 +470,7 @@ function render() {
   renderOpen(d); renderOrders(d);
   $('ordDot').classList.toggle('hidden', !d.orders.length);
   if (S.view === 'stats') renderStats();
+  if (S.view === 'setup') renderLog();
 }
 
 // ------------------------------------------------------------------ открытые: сделки одного инструмента и направления — одна позиция (как у брокера)
@@ -526,7 +532,7 @@ function renderOpen(d) {
 function renderOrders(d) {
   const el = $('orderList'), o = d.orders;
   if (!o.length) { el.innerHTML = '<div class="empty">Заявок нет. Новую можно сделать во вкладке «Расчёт».</div>'; return; }
-  el.innerHTML = o.slice().reverse().map(p => `<div class="row" style="cursor:default">
+  el.innerHTML = o.slice().reverse().map(p => `<div class="row" data-oid="${esc(p.id)}"${p._pending ? ' style="opacity:.7"' : ''}>
       <div class="l1"><span class="tk">${esc(p.ticker)}</span>${sideTag(p.side)}<span class="q">${p.qty}</span>
         <span class="v muted" style="font:10px var(--mono)">${dm(p.created)}</span></div>
       <div class="l2">
@@ -536,7 +542,7 @@ function renderOrders(d) {
         <div><span>R:R</span>${p.rr != null ? dec(p.rr, 1) : '—'}</div>
       </div>
       <div class="l3">риск ${rub(p.risk)}${p.strategy ? ' · ' + esc(p.strategy) : ''}
-        <span class="acts"><button class="btn xs ghost" data-cancel="${p.id}">Отменить</button><button class="btn xs green" data-fill="${p.id}">Исполнена</button></span></div>
+        ${p._pending ? '<span class="acts"><span class="badge warn">отправляется…</span></span>' : `<span class="acts"><button class="btn xs ghost" data-cancel="${p.id}">Отменить</button><button class="btn xs green" data-fill="${p.id}">Исполнена</button></span>`}</div>
     </div>`).join('');
 }
 
@@ -718,6 +724,10 @@ function optimistic(action, d) {
   }
   if (action === 'close') D.open = D.open.map(p => String(p.id) !== id ? p : p.qty - d.qty > 0 ? Object.assign({}, p, {
     qty: p.qty - d.qty, pnl: p.pnl * (p.qty - d.qty) / p.qty, stop: p.stop == null ? null : p.stop * (p.qty - d.qty) / p.qty }) : null).filter(Boolean);
+  if (action === 'add') D.open.push({ id: 'new' + Date.now(), ticker: d.ticker.toUpperCase(), side: d.side, qty: num(d.qty), entry: num(d.entry), price: null,
+    sl: d.sl === '' ? null : num(d.sl), tp: d.tp === '' ? null : num(d.tp), pnl: 0, stop: null, risk: 0, margin: 0, opened: new Date().toISOString(), strategy: d.strategy, _pending: true });
+  if (action === 'editOrder') D.orders = D.orders.map(o => String(o.id) !== id ? o : Object.assign({}, o, { entry: num(d.entry), qty: num(d.qty),
+    sl: d.sl === '' ? null : num(d.sl), tp: d.tp === '' ? null : num(d.tp), strategy: d.strategy, note: d.note }));
   if (action === 'edit') D.open = D.open.map(p => String(p.id) !== id ? p : Object.assign({}, p,
     'sl' in d ? { sl: d.sl === '' ? null : num(d.sl) } : {}, 'tp' in d ? { tp: d.tp === '' ? null : num(d.tp) } : {}));
 }
@@ -740,7 +750,7 @@ async function drain() {
     let done = 0, fail = null, last = '';
     for (const [action, data] of steps) {
       const j = await apiPost(action, data, true);
-      if (!j.ok) { fail = j.error; break; }
+      if (!j.ok) { fail = j.error; logLocal(action, false, j.error, ['ticker', 'side', 'qty', 'entry', 'price', 'id'].filter(k => data[k] != null && data[k] !== '').map(k => k + '=' + data[k]).join(' ')); break; }
       done++; last = j.msg;
     }
     if (fail) { if (!done) { S.data = JSON.parse(backup); render(); } toast('✗ ' + fail + (done ? ' · выполнено ' + done + ' из ' + steps.length : '')); await load(true); }
@@ -776,6 +786,143 @@ function cancelSheet(o) {
     <div class="msg" id="sMsg"></div>`);
   $('kNo').onclick = closeSheet;
   $('kGo').onclick = () => runSteps($('kGo'), [['cancel', { id: o.id }]]);
+}
+
+// ------------------------------------------------------------------ заявка: правка
+function orderSheet(o) {
+  const t = o.ticker;
+  openSheet(`
+    <h3>${esc(t)} ${sideTag(o.side)} <span class="q">${o.qty}</span></h3>
+    <div class="sub">заявка от ${dm(o.created)}${o.rr != null ? ' · R:R ' + dec(o.rr, 1) : ''} · риск ${rub(o.risk)}</div>
+    <div class="fr">
+      <div><label class="f">Вход</label><input id="oEntry" inputmode="decimal" value="${o.entry ?? ''}"></div>
+      <div><label class="f">Объём</label><input id="oQty" inputmode="numeric" value="${o.qty ?? ''}"></div>
+    </div>
+    <div class="fr">
+      <div><label class="f">Стоп</label><input id="oSl" inputmode="decimal" value="${o.sl ?? ''}"></div>
+      <div><label class="f">Тейк</label><input id="oTp" inputmode="decimal" value="${o.tp ?? ''}"></div>
+    </div>
+    <div class="fr">
+      <div><label class="f">Стратегия</label><input id="oStrat" list="stratDl" value="${esc(o.strategy || '')}" style="font:15px var(--sans)"><datalist id="stratDl">${(S.data.strategies || []).map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>
+    </div>
+    <div class="fr"><div><textarea id="oNote" rows="1" placeholder="заметка">${esc(o.note || '')}</textarea></div></div>
+    <div class="quiet" style="margin:-4px 0 10px">риск после правки <b id="oRisk" style="font-weight:500">—</b></div>
+    <button class="btn primary wide" id="oGo">Сохранить</button>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn ghost" id="oCancel">Отменить заявку</button><button class="btn green" id="oFill">Исполнена</button></div>
+    <div class="msg" id="sMsg"></div>`);
+  const s = spec(t);
+  const upd = () => { const e = num($('oEntry').value), q = num($('oQty').value), sl = num($('oSl').value);
+    $('oRisk').textContent = s && isFinite(e) && isFinite(q) && isFinite(sl) ? rub(Math.abs(e - sl) * s.pv * q) : '—'; };
+  ['oEntry', 'oQty', 'oSl'].forEach(id => $(id).oninput = upd); upd();
+  $('oCancel').onclick = () => cancelSheet(o);
+  $('oFill').onclick = () => fillSheet(o);
+  $('oGo').onclick = () => {
+    const v = id => $(id).value.trim().replace(',', '.');
+    const d = { id: o.id, entry: v('oEntry'), qty: v('oQty'), sl: v('oSl'), tp: v('oTp'), strategy: $('oStrat').value.trim(), note: $('oNote').value };
+    if (!(num(d.entry) > 0)) return say('Укажите цену входа'); if (!(num(d.qty) > 0)) return say('Укажите объём');
+    runSteps(null, [['editOrder', d]]);
+  };
+}
+
+// ------------------------------------------------------------------ «+» — сделка сразу в «Открытые»
+const ISS = 'https://iss.moex.com/iss';
+/** Спецификация и цена по коду с биржи (если её нет в данных журнала). */
+async function issSpec(code) {
+  const q = encodeURIComponent(code.trim().toUpperCase());
+  const rows = b => b ? b.data.map(r => Object.fromEntries(b.columns.map((c, i) => [c, r[i]]))) : [];
+  try {
+    const f = await (await fetch(`${ISS}/engines/futures/markets/forts/securities/${q}.json?iss.meta=off&iss.only=securities,marketdata&securities.columns=SECID,SHORTNAME,MINSTEP,STEPPRICE,INITIALMARGIN,DECIMALS,PREVSETTLEPRICE&marketdata.columns=LAST`)).json();
+    const s = rows(f.securities)[0];
+    if (s && s.MINSTEP > 0) return { secid: s.SECID, name: s.SHORTNAME, type: 'F', pv: s.STEPPRICE / s.MINSTEP, lot: 1, minstep: s.MINSTEP, decimals: s.DECIMALS, im: s.INITIALMARGIN,
+      last: (rows(f.marketdata)[0] || {}).LAST || s.PREVSETTLEPRICE };
+    const k = await (await fetch(`${ISS}/engines/stock/markets/shares/boards/TQBR/securities/${q}.json?iss.meta=off&iss.only=securities,marketdata&securities.columns=SECID,SHORTNAME,LOTSIZE,MINSTEP,DECIMALS,PREVPRICE&marketdata.columns=LAST,LCURRENTPRICE`)).json();
+    const a = rows(k.securities)[0];
+    if (a && a.LOTSIZE > 0) { const m = rows(k.marketdata)[0] || {};
+      return { secid: a.SECID, name: a.SHORTNAME, type: 'S', pv: a.LOTSIZE, lot: a.LOTSIZE, minstep: a.MINSTEP, decimals: a.DECIMALS, im: 0, last: m.LAST || m.LCURRENTPRICE || a.PREVPRICE }; }
+  } catch (e) { /* нет сети — посчитаем без подсказок */ }
+  return null;
+}
+function addSheet() {
+  const now = mskNow();
+  const known = [...new Set(S.data.open.map(p => p.ticker).concat(S.data.orders.map(o => o.ticker), Object.keys(S.data.specs || {})))];
+  openSheet(`
+    <h3>Новая сделка</h3>
+    <div class="sub">сразу в «Открытые», без заявки</div>
+    <div class="fr">
+      <div><label class="f">Тикер</label><input id="aTk" list="tkDl" autocomplete="off" autocapitalize="characters" placeholder="SiZ6, GAZP…"><datalist id="tkDl">${known.map(k => `<option value="${esc(k)}">`).join('')}</datalist></div>
+      <div><label class="f">Направление</label><div class="seg" id="aSide" style="margin:0"><button data-s="L" class="on">Long</button><button data-s="S">Short</button></div></div>
+    </div>
+    <div class="quiet" id="aInfo" style="margin:-4px 0 10px"></div>
+    <div class="fr">
+      <div><label class="f">Цена входа</label><input id="aEntry" inputmode="decimal"></div>
+      <div><label class="f">Объём</label><input id="aQty" inputmode="numeric"></div>
+    </div>
+    <div class="fr">
+      <div><label class="f">Стоп</label><input id="aSl" inputmode="decimal"></div>
+      <div><label class="f">Тейк</label><input id="aTp" inputmode="decimal"></div>
+    </div>
+    <div class="fr">
+      <div><label class="f">Стратегия</label><input id="aStrat" list="stratDl2" style="font:15px var(--sans)"><datalist id="stratDl2">${(S.data.strategies || []).map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>
+    </div>
+    <div class="fr"><div><textarea id="aNote" rows="1" placeholder="заметка"></textarea></div></div>
+    <div class="quiet" id="tLine">вход ${now.slice(8, 10)}.${now.slice(5, 7)} ${now.slice(11)} МСК · <u>изменить</u></div>
+    <div class="fr hidden" id="tBox"><div><input id="aTime" type="datetime-local" value="${now}"></div></div>
+    <button class="btn green wide" id="aGo">Добавить · <span id="aPv">по стопу —</span></button>
+    <div class="msg" id="sMsg"></div>`);
+  let sp = null, side = 'L';
+  $('tLine').onclick = () => { $('tLine').classList.add('hidden'); $('tBox').classList.remove('hidden'); };
+  $('aSide').onclick = e => { const b = e.target.closest('button'); if (!b) return; side = b.dataset.s;
+    $('aSide').querySelectorAll('button').forEach(z => z.classList.toggle('on', z === b)); upd(); };
+  const upd = () => {
+    const e = num($('aEntry').value), q = num($('aQty').value), sl = num($('aSl').value);
+    if (!sp || !isFinite(e) || !isFinite(q) || !isFinite(sl)) { $('aPv').textContent = 'по стопу —'; return; }
+    const dir = side === 'S' ? -1 : 1, v = dir * (sl - e) * sp.pv * q - feeSide(sp, e, q) - feeSide(sp, sl, q);
+    $('aPv').textContent = 'по стопу ' + rub(v, true);
+  };
+  ['aEntry', 'aQty', 'aSl'].forEach(id => $(id).oninput = upd);
+  $('aTk').onchange = async () => {
+    const code = $('aTk').value.trim(); if (!code) return;
+    const local = Object.entries(S.data.specs || {}).find(([k]) => k.toUpperCase() === code.toUpperCase());
+    $('aInfo').textContent = 'ищу на бирже…';
+    const x = await issSpec(code);
+    sp = x || (local ? Object.assign({ secid: local[0] }, local[1]) : null);
+    if (!sp) { $('aInfo').textContent = 'нет такого тикера на MOEX — проверьте код'; return; }
+    $('aTk').value = sp.secid;
+    $('aInfo').textContent = (sp.name || '') + (sp.type === 'S' ? ' · лот ' + sp.lot : '') + (x && x.last ? ' · сейчас ' + x.last : '');
+    if (!$('aEntry').value && x && x.last) $('aEntry').value = x.last;
+    S.data.specs[sp.secid] = { type: sp.type, pv: sp.pv, lot: sp.lot, minstep: sp.minstep, decimals: sp.decimals, im: sp.im, name: sp.name };
+    upd();
+  };
+  $('aGo').onclick = () => {
+    const v = id => $(id).value.trim().replace(',', '.');
+    const d = { ticker: v('aTk'), side, entry: v('aEntry'), qty: v('aQty'), sl: v('aSl'), tp: v('aTp'),
+      strategy: $('aStrat').value.trim(), note: $('aNote').value, time: $('aTime').value };
+    if (!d.ticker) return say('Укажите тикер');
+    if (!(num(d.entry) > 0)) return say('Укажите цену входа'); if (!(num(d.qty) > 0)) return say('Укажите объём');
+    runSteps(null, [['add', d]]);
+  };
+  setTimeout(() => $('aTk').focus(), 300);
+}
+
+// ------------------------------------------------------------------ журнал событий этого устройства
+const DEV = /iPhone/.test(navigator.userAgent) ? 'iPhone' : /iPad/.test(navigator.userAgent) ? 'iPad' : /Macintosh/.test(navigator.userAgent) ? 'Mac' : 'другое';
+const ACT = { order: 'заявка', add: 'новая сделка', fill: 'исполнение', cancel: 'отмена заявки', close: 'закрытие', edit: 'стоп/тейк',
+  editOrder: 'правка заявки', settings: 'настройки', expense: 'расход', import: 'импорт', importPreview: 'проверка отчёта', refresh: 'котировки', load: 'загрузка данных' };
+function logLocal(action, ok, msg, what) {
+  const L = store.get('journal.log', []);
+  L.unshift({ at: new Date().toISOString(), dev: DEV, action, what: what || '', ok, msg: String(msg || '').slice(0, 200), local: true });
+  store.set('journal.log', L.slice(0, 50));
+}
+function renderLog() {
+  if (!$('logList')) return;
+  // журнал (все устройства) + то, что с этого устройства не дошло до журнала
+  const srv = (S.data && S.data.log) || [], loc = store.get('journal.log', []).filter(x => !x.ok);
+  const all = srv.concat(loc).sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 30);
+  $('logList').innerHTML = all.length ? all.map(x => `<div class="row" style="cursor:default">
+      <div class="l1"><span class="q" style="color:var(--text)">${esc(ACT[x.action] || x.action)}</span><span class="q">${esc(x.dev || '')}${x.local ? ' · не дошло' : ''}</span>
+        <span class="v ${x.ok ? 'pos' : 'neg'}" style="font-size:11px">${x.ok ? '✓' : '✗ ошибка'}</span></div>
+      <div class="l3"><span>${dm(x.at)}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc([x.what, x.msg].filter(Boolean).join(' · '))}</span></div>
+    </div>`).join('') : '<div class="empty">Пока пусто</div>';
 }
 
 // ------------------------------------------------------------------ итоги
@@ -984,10 +1131,12 @@ $('openList').onclick = e => {
   const g = groups().find(x => x.key === c.dataset.g); if (g) positionSheet(g);
 };
 $('orderList').onclick = e => {
-  const f = e.target.closest('[data-fill]'), k = e.target.closest('[data-cancel]');
+  const f = e.target.closest('[data-fill]'), k = e.target.closest('[data-cancel]'), row = e.target.closest('[data-oid]');
   const find = id => S.data.orders.find(x => String(x.id) === id);
   if (f) fillSheet(find(f.dataset.fill)); else if (k) cancelSheet(find(k.dataset.cancel));
+  else if (row) { const o = find(row.dataset.oid); if (o && !o._pending) orderSheet(o); }
 };
+$('addBtn').onclick = () => { if (S.data) addSheet(); };
 $('period').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.period = b.dataset.p; store.set('journal.period', S.period); S.hLimit = 40; renderStats(); };
 $('hFilter').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.hFilter = b.dataset.f; S.hLimit = 40;
   $('hFilter').querySelectorAll('button').forEach(z => z.classList.toggle('on', z === b)); renderHist(); };
@@ -1027,7 +1176,15 @@ function setTheme(t) {
 $('theme').onclick = e => { const b = e.target.closest('button'); if (b) setTheme(b.dataset.t); };
 setTheme(document.documentElement.dataset.theme || 'emerald');
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.view !== 'setup' && S.view !== 'calc') load(); });
-window.addEventListener('message', e => { if (e.origin === location.origin && e.data === 'order-sent') load(); });   // калькулятор отправил заявку
+// калькулятор: заявка в пути → видна в «Заявках» сразу с пометкой; дошла → данные из журнала; не дошла → убрать
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !S.data) return;
+  const m = e.data;
+  if (m === 'order-sent') return load();
+  if (!m || m.type !== 'order') return;
+  if (m.stage === 'sending') { S.data.orders = S.data.orders.filter(o => o.id !== m.order.id).concat([m.order]); render(); }
+  else { S.data.orders = S.data.orders.filter(o => o.id !== m.tmp); render(); if (m.stage === 'sent') load(true); else toast('✗ Заявка не ушла: ' + (m.error || '')); }
+});
 
 // ------------------------------------------------------------------ старт
 if ('serviceWorker' in navigator) {

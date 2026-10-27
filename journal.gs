@@ -2117,7 +2117,18 @@ function doPost(e) {
   let d;
   try { d = JSON.parse(e.postData.contents); } catch (err) { return json_({ ok: false, error: 'Запрос не в формате JSON' }); }
   if (!apiKeyOk_(d.key)) return json_({ ok: false, error: 'Неверный ключ доступа' });
-  if (d.action && d.action !== 'order') return json_(appAction_(d));   // приложение «Журнал»
+  let out;
+  try {
+    out = d.action && d.action !== 'order' ? appAction_(d) : postOrder_(d);   // приложение «Журнал» / заявка из калькулятора
+  } catch (err) {
+    out = { ok: false, error: 'Ошибка журнала: ' + (err.message || err) };
+  }
+  logEvent_(d, out);
+  return json_(out);
+}
+
+/** Новая заявка из калькулятора. */
+function postOrder_(d) {
   const res = locked_(d.token, () => {
     const t = refSecid_(d.ticker);
     if (!t) throw new Error('Тикера ' + String(d.ticker || '').trim() + ' нет в справочнике журнала');
@@ -2132,8 +2143,8 @@ function doPost(e) {
     }]);
     return String(id);
   });
-  if (!res.ok) return json_({ ok: false, error: res.msg });
-  return json_({ ok: true, id: res.msg === 'Уже выполнено' ? null : Number(res.msg), duplicate: res.msg === 'Уже выполнено' });
+  if (!res.ok) return { ok: false, error: res.msg };
+  return { ok: true, id: res.msg === 'Уже выполнено' ? null : Number(res.msg), duplicate: res.msg === 'Уже выполнено' };
 }
 
 /** Новая стратегия из калькулятора — в список «Настроек» (иначе выпадающий список сочтёт её ошибкой). */
@@ -2177,7 +2188,7 @@ function showApiInfo() {
 /**
  * App.gs — данные и действия для приложения «Журнал» (PWA на GitHub Pages).
  *   GET  ?key=…&action=snapshot      → открытые, заявки, закрытые, расходы, настройки, спецификации
- *   POST {key, action, token, …}     → fill | cancel | close | edit | refresh | settings | expense | import (+ snapshot)
+ *   POST {key, action, token, …}     → add | fill | cancel | close | edit | editOrder | refresh | settings | expense | import (+ snapshot)
  *                                      importPreview — только проверка отчёта, без записи
  * Ключ тот же, что у калькулятора. Операции — те же функции, что у диалогов в Таблице.
  */
@@ -2221,7 +2232,7 @@ function snapshot_(lite) {
   const quotesAt = sheet_(SH.OPEN).getRange(OPEN.SUMMARY, C_(OPEN).PNLR).getValue();
   const refAt = SpreadsheetApp.getActive().getRangeByName('SET_REF_UPDATED').getValue();
   const strategies = SpreadsheetApp.getActive().getRangeByName('STRATEGIES').getValues().map(r => r[0]).filter(String);
-  return {
+  return { log: lastLog_(30),
     ok: true, lite: !!lite, at: new Date(), quotesAt: quotesAt instanceof Date ? quotesAt : null,
     refAt: refAt instanceof Date ? refAt : null, importedTo: importWatermark_() || null,
     settings: { deposit: s.deposit, riskTrade: s.riskTrade, riskTotal: s.riskTotal, commFut: s.commFut,
@@ -2254,6 +2265,10 @@ function dedupeOpenIds_() {
 function appAction_(d) {
   let res;
   switch (d.action) {
+    case 'add':    res = addTrade({ ticker: d.ticker, side: d.side, qty: d.qty, entry: d.entry, sl: d.sl, tp: d.tp,
+                     opened: d.time, strategy: d.strategy || '', note: d.note || '', token: d.token });
+                   if (res.ok && d.strategy) addStrategy_(String(d.strategy).trim()); break;
+    case 'editOrder': res = locked_(d.token, () => editOrder_(d)); break;
     case 'fill':   res = fillOrder({ id: d.id, price: d.price, qty: d.qty, time: d.time, note: d.note || '', token: d.token }); break;
     case 'cancel': res = locked_(d.token, () => {
                      if (!deleteById_(SH.ORDERS, ORDERS, d.id)) return 'Заявка уже удалена';
@@ -2308,6 +2323,57 @@ function addExpense_(d) {
   if (!String(d.kind || '').trim()) throw new Error('Укажите вид');
   appendRows_(SH.EXP, EXP, [{ DATE: parseTime_(d.date), KIND: String(d.kind).trim(), AMOUNT: amount, NOTE: String(d.note || '') }]);
   return (amount > 0 ? 'Доход ' : 'Расход ') + fmtRub_(amount) + ' записан';
+}
+
+/** Правка заявки: вход, объём, стоп, тейк, стратегия, заметка. Пустой стоп/тейк — убрать. */
+function editOrder_(d) {
+  const f = findById_(SH.ORDERS, ORDERS, d.id);
+  if (!f) throw new Error('Заявка #' + d.id + ' не найдена');
+  const sh = sheet_(SH.ORDERS), c = C_(ORDERS), parts = [];
+  const set = (k, v, label) => { sh.getRange(f.row, c[k]).setValue(v); parts.push(label); };
+  if ('entry' in d) { const v = num_(d.entry); if (!(v > 0)) throw new Error('Цена входа должна быть больше нуля'); set('ENTRY', v, 'вход ' + v); }
+  if ('qty' in d)   { const v = num_(d.qty);   if (!(v > 0)) throw new Error('Объём должен быть больше нуля');      set('QTY', v, 'объём ' + v); }
+  if ('sl' in d) set('SL', optNum_(d.sl), 'стоп ' + (d.sl === '' ? '—' : d.sl));
+  if ('tp' in d) set('TP', optNum_(d.tp), 'тейк ' + (d.tp === '' ? '—' : d.tp));
+  if ('strategy' in d) { const s = String(d.strategy || '').trim(); if (s) addStrategy_(s); set('STRATEGY', s, 'стратегия'); }
+  if ('note' in d) set('NOTE', String(d.note || ''), 'заметка');
+  return 'Заявка #' + d.id + ' ' + f.obj.TICKER + ': ' + parts.join(', ');
+}
+
+// ---------------------------------------------------------------- лог действий и ошибок
+
+const LOG_SHEET = 'Лог';
+const LOG_KEEP = 3000;   // сколько последних строк хранить
+
+/** Запись в лист «Лог»: время, устройство, действие, детали, результат. Ошибка записи лога ни на что не влияет. */
+function logEvent_(d, out) {
+  try {
+    if (d.action === 'refresh' && out.ok) return;                       // обновление котировок — не засоряем
+    if (d.action === 'importPreview' && out.ok) return;
+    const ss = SpreadsheetApp.getActive();
+    let sh = ss.getSheetByName(LOG_SHEET);
+    if (!sh) {
+      sh = ss.insertSheet(LOG_SHEET);
+      sh.getRange(1, 1, 1, 6).setValues([['Время', 'Устройство', 'Действие', 'Что', 'Итог', 'Сообщение']]).setFontWeight('bold');
+      sh.setFrozenRows(1);
+      [120, 80, 110, 260, 60, 360].forEach((w, i) => sh.setColumnWidth(i + 1, w));
+    }
+    const what = ['ticker', 'side', 'qty', 'entry', 'price', 'sl', 'tp', 'id'].filter(k => d[k] !== undefined && d[k] !== '')
+      .map(k => k + '=' + d[k]).join(' ');
+    sh.appendRow([new Date(), String(d.dev || '').slice(0, 20), d.action || 'order', what, out.ok ? 'ok' : 'ОШИБКА',
+      String(out.ok ? (out.msg || (out.id ? 'заявка #' + out.id : '')) : out.error || '').slice(0, 300)]);
+    const extra = sh.getLastRow() - 1 - LOG_KEEP;
+    if (extra > 200) sh.deleteRows(2, extra);
+  } catch (e) { /* лог не должен ломать работу */ }
+}
+
+/** Последние записи лога для экрана «Последние события» в ⚙. */
+function lastLog_(n) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(LOG_SHEET);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const k = Math.min(n, sh.getLastRow() - 1);
+  return sh.getRange(sh.getLastRow() - k + 1, 1, k, 6).getValues().reverse()
+    .map(r => ({ at: r[0], dev: r[1], action: r[2], what: r[3], ok: r[4] === 'ok', msg: r[5] }));
 }
 
 /** Правка открытой позиции: стоп, тейк, заметка. Пустое значение стопа/тейка — убрать. */

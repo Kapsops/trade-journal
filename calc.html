@@ -392,39 +392,67 @@ function renderStrategies() {
 }
 function setConn(t, cls) { $('conn').textContent = t; $('conn').className = 'pill ' + cls; }
 
+// Отправка заявки: пока идёт — кнопка «Отправляю…» и не нажимается; итог — на кнопке.
+// Ту же заявку второй раз в течение 2 минут — только после подтверждения.
+let sending = false, lastSent = null;
+const DEV = /iPhone/.test(navigator.userAgent) ? 'iPhone' : /iPad/.test(navigator.userAgent) ? 'iPad' : /Macintosh/.test(navigator.userAgent) ? 'Mac' : 'другое';
+const toParent = m => { try { if (window.top !== window) parent.postMessage(m, location.origin); } catch (e) {} };
+function logLocal(action, ok, msg, what) {      // журнал событий этого устройства (виден в ⚙ приложения)
+  try {
+    const L = JSON.parse(localStorage.getItem('journal.log') || '[]');
+    L.unshift({ at: new Date().toISOString(), dev: DEV, action, what: what || '', ok, msg: String(msg || '').slice(0, 200), local: true });
+    localStorage.setItem('journal.log', JSON.stringify(L.slice(0, 50)));
+  } catch (e) {}
+}
 async function send() {
   const r = S.res;
-  if (!r || !r.ok) return;
+  if (!r || !r.ok || sending) return;
+  const sig = [S.spec.secid, S.side, r.qty, r.entry, r.sl].join('|');
+  if (lastSent && lastSent.sig === sig && Date.now() - lastSent.at < 120000 &&
+      !confirm('Такая заявка уже отправлена в ' + new Date(lastSent.at).toTimeString().slice(0, 5) + '. Отправить ещё одну?')) return;
   const payload = {
-    key: S.cfg.key, token: Math.random().toString(36).slice(2) + Date.now(),
+    key: S.cfg.key, token: Math.random().toString(36).slice(2) + Date.now(), dev: DEV,
     ticker: S.spec.secid, side: S.side, qty: r.qty, entry: r.entry, sl: r.sl, tp: isFinite(r.tp) ? r.tp : '',
     strategy: $('strategy').value, note: $('note').value,
   };
+  const what = payload.ticker + ' ' + payload.side + ' ' + payload.qty + ' @ ' + payload.entry + ' SL ' + payload.sl;
   const li = document.createElement('li');
-  li.innerHTML = '<span></span><span></span><span class="muted">…</span>';
+  li.innerHTML = '<span></span><span></span><span class="muted">отправляю…</span>';
   li.children[0].textContent = new Date().toTimeString().slice(0, 5);
-  li.children[1].textContent = payload.ticker + ' ' + payload.side + ' ' + payload.qty + ' @ ' + payload.entry + ' SL ' + payload.sl;
+  li.children[1].textContent = what;
   $('sent').prepend(li);
-  const status = li.children[2];
-  $('send').disabled = true;
+  const status = li.children[2], btn = $('send');
+  sending = true; btn.disabled = true; btn.textContent = 'Отправляю…';
+  const tmp = 'tmp' + payload.token;
+  toParent({ type: 'order', stage: 'sending', order: { id: tmp, created: new Date().toISOString(), ticker: payload.ticker, side: payload.side,
+    qty: payload.qty, entry: payload.entry, sl: payload.sl, tp: payload.tp === '' ? null : payload.tp, strategy: payload.strategy, note: payload.note, _pending: true } });
   const q = (S.cfg.url.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(S.cfg.key) + '&token=' + payload.token;
   // Переспросить журнал по token: ответ на POST Google иногда отдаёт от GET-запроса без ключа
   const check = async () => { try { return await (await fetch(S.cfg.url + q)).json(); } catch (e) { return null; } };
+  let res = { ok: false, error: 'нет связи с журналом' };
   try {
     const resp = await fetch(S.cfg.url + q, { method: 'POST', body: JSON.stringify(payload) });
     let j = await resp.json();
     if (!(j.ok && (j.id || j.duplicate))) j = (await check()) || j;
-    if (j.ok) { status.textContent = j.id ? '✓ #' + j.id : '✓ уже было'; status.className = 'pos'; loadJournal();
-      try { if (window.top !== window) parent.postMessage('order-sent', location.origin); } catch (e) {} }
-    else { status.textContent = '✗ ' + j.error; status.className = 'neg'; }
+    res = j.ok ? { ok: true, id: j.id } : { ok: false, error: j.error };
   } catch (e) {
-    // Ответ не прочитать (CORS/сеть). Повтор с тем же token заявку не задвоит.
-    try {
-      await fetch(S.cfg.url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-      status.textContent = 'отправлено (ответ не прочитан)'; status.className = 'muted';
-    } catch (e2) { status.textContent = '✗ не отправлено: ' + e2.message; status.className = 'neg'; }
+    // Ответ не прочитать (сеть). Переспрашиваем журнал: повтор с тем же token заявку не задвоит.
+    const c = await check();
+    res = c && c.ok ? { ok: true, id: c.id } : { ok: false, error: (c && c.error) || e.message };
   } finally {
-    $('send').disabled = false;
+    sending = false; btn.disabled = false;
+    if (res.ok) {
+      lastSent = { sig, at: Date.now() };
+      status.textContent = res.id ? '✓ #' + res.id : '✓'; status.className = 'pos';
+      btn.textContent = res.id ? '✓ Заявка #' + res.id + ' в журнале' : '✓ Заявка в журнале';
+      loadJournal();
+    } else {
+      status.textContent = '✗ ' + res.error; status.className = 'neg';
+      btn.textContent = '✗ Не ушла — нажмите ещё раз';
+      logLocal('order', false, res.error, what);
+    }
+    setTimeout(() => { if (!sending) btn.textContent = 'В заявки'; }, 5000);
+    toParent({ type: 'order', stage: res.ok ? 'sent' : 'failed', tmp, id: res.id, error: res.error });
   }
 }
 
@@ -590,7 +618,7 @@ function useFutures() {
 function render(warn) {
   $('warn').innerHTML = '';
   warn.forEach(([t, c]) => { const li = document.createElement('li'); li.textContent = t; if (c) li.className = c; $('warn').appendChild(li); });
-  $('send').disabled = !(S.res && S.res.ok && S.cfg.url && S.cfg.key);
+  $('send').disabled = sending || !(S.res && S.res.ok && S.cfg.url && S.cfg.key);
 }
 
 // ------------------------------------------------------------------ события

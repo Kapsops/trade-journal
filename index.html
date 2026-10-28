@@ -182,6 +182,44 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
 #calcFrame{width:100%;border:0;display:block;height:calc(100vh - 130px);height:calc(100dvh - var(--top) - var(--bot) - 130px)}
 .tab-calc .app{padding-left:0;padding-right:0}
 .tab-calc header{padding:0 16px}
+
+/* лампочки-метки: объёмный шарик с бликом и цветным ореолом */
+.lamp{--lc:#3a3c42;flex:0 0 auto;width:11px;height:11px;border-radius:50%;border:0;padding:0;cursor:pointer;position:relative;
+  background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95) 0 9%,var(--lc) 42%,color-mix(in srgb,var(--lc) 55%,#000) 100%);
+  box-shadow:0 0 7px 1px color-mix(in srgb,var(--lc) 65%,transparent),0 0 2px var(--lc)}
+.lamp::after{content:'';position:absolute;inset:-9px}      /* палец попадает легче */
+.lamp.off{background:radial-gradient(circle at 35% 30%,#5d5f66 0 10%,#26272b 70%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.lamp[data-c=red]{--lc:#ff4d4d}.lamp[data-c=orange]{--lc:#ff8a2a}.lamp[data-c=yellow]{--lc:#ffd23f}.lamp[data-c=green]{--lc:#3ee08f}
+.lamp[data-c=cyan]{--lc:#3fd6ff}.lamp[data-c=blue]{--lc:#4d7cff}.lamp[data-c=violet]{--lc:#b06bff}
+.lamp.big{width:16px;height:16px}
+.tagbar{display:flex;align-items:center;gap:11px;padding:8px 14px;border-bottom:1px solid var(--line)}
+.tagbar .lamp{opacity:.45}.tagbar .lamp.sel{opacity:1;outline:1px solid rgba(255,255,255,.5);outline-offset:3px}
+.tagbar .all{font:600 9px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:none;border:0;padding:0;cursor:pointer}
+.tagbar .all.sel{color:var(--text)}
+.tagbar .cnt{margin-left:auto;font:10px var(--mono);color:var(--dim)}
+.tagopt{display:flex;align-items:center;gap:12px;padding:11px 4px;border-top:1px solid var(--line);cursor:pointer}
+.tagopt:first-child{border-top:0}
+.tagopt b{font:500 13px var(--sans)}.tagopt span{font:12px var(--sans);color:var(--muted)}
+.tagopt.cur{background:rgba(255,255,255,.04);border-radius:10px}
+
+/* подсветка пустой стратегии: оранжево-белое свечение медленно плывёт по рамке, вокруг — ореол из точек */
+@property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes needSpin{to{--ang:360deg}}
+.needw{position:relative;border-radius:12px}
+.needw.need::before{content:'';position:absolute;inset:-1.5px;border-radius:13.5px;padding:1.5px;pointer-events:none;z-index:1;
+  background:conic-gradient(from var(--ang),transparent 0 50%,rgba(255,140,60,.25) 60%,#ff9a4a 72%,#fff 78%,#ff9a4a 84%,transparent 96%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+  animation:needSpin 7s linear infinite}
+.needw.need::after{content:'';position:absolute;inset:-12px;border-radius:22px;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,170,110,.55) .8px,transparent 1.3px) 0 0/6px 6px;
+  -webkit-mask:conic-gradient(from var(--ang),transparent 0 48%,#000 70%,#000 80%,transparent 98%);mask:conic-gradient(from var(--ang),transparent 0 48%,#000 70%,#000 80%,transparent 98%);
+  filter:blur(.3px);opacity:.75;animation:needSpin 7s linear infinite}
+.needw.need input{box-shadow:var(--inset),0 0 18px rgba(255,140,60,.18)}
+.nostrat{font:600 8px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:#ffb27a;border:1px dashed rgba(255,160,90,.45);border-radius:999px;padding:1px 6px}
+.swt{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--text);margin-top:12px;cursor:pointer}
+.swt input{width:40px;height:22px;appearance:none;-webkit-appearance:none;border-radius:999px;background:var(--well);box-shadow:var(--inset);position:relative;cursor:pointer;flex:0 0 auto;border:0;padding:0}
+.swt input::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#5d5f66;transition:all .2s}
+.swt input:checked::after{left:21px;background:radial-gradient(circle at 35% 30%,#fff,#ff9a4a 60%);box-shadow:0 0 10px rgba(255,140,60,.7)}
 </style>
 </head>
 <body>
@@ -252,6 +290,10 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
       </div>
       <label class="f">Стратегии · по одной в строке</label>
       <div class="fr"><div><textarea id="stStrat" rows="4" style="font-size:14px"></textarea></div></div>
+      <label class="f">Стратегии выхода · по одной в строке</label>
+      <div class="fr"><div><textarea id="stExit" rows="4" style="font-size:14px"></textarea></div></div>
+      <label class="f">Метки · что значит каждый цвет</label>
+      <div id="stTags" style="margin-bottom:10px"></div>
       <button class="btn primary wide" id="stGo">Сохранить</button>
       <div class="msg" id="stMsg" style="min-height:0"></div>
     </div>
@@ -274,9 +316,10 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
     <div class="sect"><h2>Последние события</h2><span>все устройства</span></div>
     <div class="panel" id="logList"></div>
 
-    <div class="sect"><h2>Тема</h2><span>версия 27.10 · 10</span></div>
+    <div class="sect"><h2>Тема</h2><span>версия 28.10 · 11</span></div>
     <div class="panel pad">
       <div class="seg" id="theme" style="margin:0"><button data-t="mono">Монохром</button><button data-t="emerald">Приглушённая</button><button data-t="neon">Неон</button></div>
+      <label class="swt"><span>Подсвечивать пустую стратегию</span><input type="checkbox" id="hlSw"></label>
     </div>
   </section>
 
@@ -331,6 +374,10 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
     </div>
     <div class="sect"><h2>Стратегии</h2><span>сделок · винрейт · PnL</span></div>
     <div class="panel pad"><table class="tbl" id="byStrat"></table></div>
+    <div class="sect"><h2>Стратегии выхода</h2><span>сделок · винрейт · PnL</span></div>
+    <div class="panel pad"><table class="tbl" id="byExit"></table></div>
+    <div class="sect" id="byTagH"><h2>Метки</h2><span>сделок · винрейт · PnL</span></div>
+    <div class="panel pad" id="byTagP"><table class="tbl" id="byTag"></table></div>
     <div class="sect"><h2>Инструменты</h2><span>лучшие и худшие</span></div>
     <div class="panel pad"><table class="tbl" id="byTicker"></table></div>
     <div class="sect"><h2>Вне сделок</h2></div>
@@ -490,6 +537,7 @@ function groups() {
       qty, entry: P.reduce((s, p) => s + p.entry * p.qty, 0) / qty, price: (P.find(p => p.price != null) || {}).price ?? null,
       pnl: sum('pnl'), stop: P.some(p => p.stop == null) ? null : sum('stop'), risk: sum('risk'), margin: sum('margin'),
       r: P.length === 1 ? P[0].r : null, sl: same('sl'), tp: same('tp'), noSl: P.some(p => p.sl == null),
+      tag: P.map(p => p.tag).find(Boolean) || '', noStrat: P.some(p => !p.strategy),
     });
   });
 }
@@ -511,10 +559,11 @@ function renderOpen(d) {
   const el = $('openList');
   if (!G.length) { el.innerHTML = '<div class="empty">Открытых позиций нет</div>'; return; }
   G.sort((a, b) => ((a.stop >= 0) - (b.stop >= 0)) || (a.pnl - b.pnl));   // сначала те, что в риске
-  el.innerHTML = G.map(g => {
+  const GF = G.filter(g => tagPass('open', g.tag));
+  el.innerHTML = tagBar('open', G) + (GF.length ? '' : '<div class="empty">Нет позиций с этой меткой</div>') + GF.map(g => {
     const safe = g.stop != null && g.stop >= 0, t = g.ticker;
     return `<div class="row${safe ? ' safe' : ''}" data-g="${esc(g.key)}">
-      <div class="l1"><span class="tk">${esc(t)}</span>${sideTag(g.side)}<span class="q">${g.qty}</span>${g.parts.length > 1 ? `<span class="n">${g.parts.length} сд.</span>` : ''}
+      <div class="l1">${lamp(g.tag, `data-tag="open" data-ids="${g.parts.map(p => p.id).join(',')}"`)}<span class="tk">${esc(t)}</span>${sideTag(g.side)}<span class="q">${g.qty}</span>${g.parts.length > 1 ? `<span class="n">${g.parts.length} сд.</span>` : ''}${hlOn() && g.noStrat ? '<span class="nostrat">нет стратегии</span>' : ''}
         <span class="v ${g.price == null ? 'muted' : 'glow ' + cls(g.pnl)}">${g.price == null ? 'нет цены' : rub(g.pnl, true)}</span></div>
       <div class="l2">
         <div><span>${g.parts.length > 1 ? 'ср. вход' : 'вход'}</span>${fp(g.entry, t)}</div>
@@ -532,8 +581,9 @@ function renderOpen(d) {
 function renderOrders(d) {
   const el = $('orderList'), o = d.orders;
   if (!o.length) { el.innerHTML = '<div class="empty">Заявок нет. Новую можно сделать во вкладке «Расчёт».</div>'; return; }
-  el.innerHTML = o.slice().reverse().map(p => `<div class="row" data-oid="${esc(p.id)}"${p._pending ? ' style="opacity:.7"' : ''}>
-      <div class="l1"><span class="tk">${esc(p.ticker)}</span>${sideTag(p.side)}<span class="q">${p.qty}</span>
+  const OF = o.slice().reverse().filter(p => tagPass('orders', p.tag));
+  el.innerHTML = tagBar('orders', o) + (OF.length ? '' : '<div class="empty">Нет заявок с этой меткой</div>') + OF.map(p => `<div class="row" data-oid="${esc(p.id)}"${p._pending ? ' style="opacity:.7"' : ''}>
+      <div class="l1">${p._pending ? lamp('', '') : lamp(p.tag, `data-tag="orders" data-ids="${p.id}"`)}<span class="tk">${esc(p.ticker)}</span>${sideTag(p.side)}<span class="q">${p.qty}</span>${hlOn() && !p.strategy ? '<span class="nostrat">нет стратегии</span>' : ''}
         <span class="v muted" style="font:10px var(--mono)">${dm(p.created)}</span></div>
       <div class="l2">
         <div><span>вход</span>${fp(p.entry, p.ticker)}</div>
@@ -547,7 +597,7 @@ function renderOrders(d) {
 }
 
 // ------------------------------------------------------------------ лист снизу
-function openSheet(html) { $('sheetBody').innerHTML = html; $('sheet').classList.add('on'); $('shade').classList.add('on'); }
+function openSheet(html) { $('sheetBody').innerHTML = html; $('sheet').classList.add('on'); $('shade').classList.add('on'); needScan($('sheetBody')); }
 function closeSheet() { $('sheet').classList.remove('on'); $('shade').classList.remove('on'); }
 $('shade').onclick = closeSheet;
 
@@ -619,6 +669,7 @@ function dealSheet(p, g) {
       <div><label class="f">Цена выхода</label><input id="xPrice" inputmode="decimal" value="${p.price ?? ''}"></div>
       <div><label class="f">Объём из ${p.qty}</label><div class="inl"><input id="xQty" inputmode="numeric" value="${p.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
     </div>
+    <div class="fr"><div>${stratInput('xExit', S.data.exitStrategies, '', 'стратегия выхода: стоп, тейк, трейлинг…')}</div></div>
     <div class="fr"><div><textarea id="xNote" rows="1" placeholder="заметка"></textarea></div></div>
     <div class="quiet" id="tLine">время ${now.slice(8, 10)}.${now.slice(5, 7)} ${now.slice(11)} МСК · <u>изменить</u></div>
     <div class="fr hidden" id="tBox"><div><input id="xTime" type="datetime-local" value="${now}"></div></div>
@@ -648,7 +699,7 @@ function dealSheet(p, g) {
   $('xGo').onclick = () => {
     const price = num($('xPrice').value), q = num($('xQty').value);
     if (!(price > 0)) return say('Укажите цену выхода'); if (!(q > 0)) return say('Укажите объём');
-    runSteps(null, [['close', { id: p.id, price, qty: Math.min(q, p.qty), time: $('xTime').value, note: $('xNote').value }]]);
+    runSteps(null, [['close', { id: p.id, price, qty: Math.min(q, p.qty), time: $('xTime').value, note: $('xNote').value, exitStrategy: $('xExit').value.trim() }]]);
   };
   $('eGo').onclick = () => runSteps(null, [['edit', { id: p.id, sl: $('eSl').value.trim().replace(',', '.'), tp: $('eTp').value.trim().replace(',', '.') }]]);
 }
@@ -664,6 +715,7 @@ function groupCloseSheet(g) {
       <div><label class="f">Цена выхода</label><input id="xPrice" inputmode="decimal" value="${g.price ?? ''}"></div>
       <div><label class="f">Объём</label><div class="inl"><input id="xQty" inputmode="numeric" value="${g.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
     </div>
+    <div class="fr"><div>${stratInput('xExit', S.data.exitStrategies, '', 'стратегия выхода: стоп, тейк, трейлинг…')}</div></div>
     <div class="fr"><div><textarea id="xNote" rows="1" placeholder="заметка"></textarea></div></div>
     <div class="quiet" id="tLine">время ${mskNow().slice(8, 10)}.${mskNow().slice(5, 7)} ${mskNow().slice(11)} МСК · <u>изменить</u></div>
     <div class="fr hidden" id="tBox"><div><input id="xTime" type="datetime-local" value="${mskNow()}"></div></div>
@@ -680,7 +732,8 @@ function groupCloseSheet(g) {
     const price = num($('xPrice').value), q = num($('xQty').value);
     if (!(price > 0)) return say('Укажите цену выхода'); if (!(q > 0)) return say('Укажите объём');
     const time = $('xTime').value, note = $('xNote').value;
-    runSteps(null, allocate(g.parts, Math.min(q, g.qty)).map(([p, n]) => ['close', { id: p.id, price, qty: n, time, note }]));
+    const exitStrategy = $('xExit').value.trim();
+    runSteps(null, allocate(g.parts, Math.min(q, g.qty)).map(([p, n]) => ['close', { id: p.id, price, qty: n, time, note, exitStrategy }]));
   };
 }
 
@@ -724,6 +777,8 @@ function optimistic(action, d) {
   }
   if (action === 'close') D.open = D.open.map(p => String(p.id) !== id ? p : p.qty - d.qty > 0 ? Object.assign({}, p, {
     qty: p.qty - d.qty, pnl: p.pnl * (p.qty - d.qty) / p.qty, stop: p.stop == null ? null : p.stop * (p.qty - d.qty) / p.qty }) : null).filter(Boolean);
+  if (action === 'tag') { const ids = d.ids.map(String), key = { orders: 'orders', open: 'open', closed: 'closed' }[d.kind];
+    D[key] = D[key].map(x => ids.includes(String(x.id)) ? Object.assign({}, x, { tag: d.tag }) : x); }
   if (action === 'add') D.open.push({ id: 'new' + Date.now(), ticker: d.ticker.toUpperCase(), side: d.side, qty: num(d.qty), entry: num(d.entry), price: null,
     sl: d.sl === '' ? null : num(d.sl), tp: d.tp === '' ? null : num(d.tp), pnl: 0, stop: null, risk: 0, margin: 0, opened: new Date().toISOString(), strategy: d.strategy, _pending: true });
   if (action === 'editOrder') D.orders = D.orders.map(o => String(o.id) !== id ? o : Object.assign({}, o, { entry: num(d.entry), qty: num(d.qty),
@@ -769,11 +824,12 @@ function fillSheet(o) {
       <div><label class="f">Объём</label><input id="fQty" inputmode="numeric" value="${o.qty}"></div>
     </div>
     <div class="fr"><div><label class="f">Время, МСК</label><input id="fTime" type="datetime-local" value="${mskNow()}"></div></div>
+    <div class="fr"><div><label class="f">Стратегия входа</label>${stratInput('fStrat', S.data.strategies, o.strategy, 'выберите или впишите')}</div></div>
     <div class="fr"><div><label class="f">Заметка</label><textarea id="fNote" rows="2"></textarea></div></div>
     <button class="btn green wide" id="fGo">Исполнена</button>
     <div class="msg" id="sMsg"></div>`);
   $('fGo').onclick = () => {
-    const d = { id: o.id, price: num($('fPrice').value), qty: num($('fQty').value), time: $('fTime').value, note: $('fNote').value };
+    const d = { id: o.id, price: num($('fPrice').value), qty: num($('fQty').value), time: $('fTime').value, note: $('fNote').value, strategy: $('fStrat').value.trim() };
     if (!(d.price > 0)) return say('Укажите цену'); if (!(d.qty > 0)) return say('Укажите объём');
     runSteps($('fGo'), [['fill', d]]);
   };
@@ -803,7 +859,7 @@ function orderSheet(o) {
       <div><label class="f">Тейк</label><input id="oTp" inputmode="decimal" value="${o.tp ?? ''}"></div>
     </div>
     <div class="fr">
-      <div><label class="f">Стратегия</label><input id="oStrat" list="stratDl" value="${esc(o.strategy || '')}" style="font:15px var(--sans)"><datalist id="stratDl">${(S.data.strategies || []).map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>
+      <div><label class="f">Стратегия входа</label>${stratInput('oStrat', S.data.strategies, o.strategy, 'выберите или впишите')}</div>
     </div>
     <div class="fr"><div><textarea id="oNote" rows="1" placeholder="заметка">${esc(o.note || '')}</textarea></div></div>
     <div class="quiet" style="margin:-4px 0 10px">риск после правки <b id="oRisk" style="font-weight:500">—</b></div>
@@ -862,7 +918,7 @@ function addSheet() {
       <div><label class="f">Тейк</label><input id="aTp" inputmode="decimal"></div>
     </div>
     <div class="fr">
-      <div><label class="f">Стратегия</label><input id="aStrat" list="stratDl2" style="font:15px var(--sans)"><datalist id="stratDl2">${(S.data.strategies || []).map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>
+      <div><label class="f">Стратегия входа</label>${stratInput('aStrat', S.data.strategies, '', 'выберите или впишите')}</div>
     </div>
     <div class="fr"><div><textarea id="aNote" rows="1" placeholder="заметка"></textarea></div></div>
     <div class="quiet" id="tLine">вход ${now.slice(8, 10)}.${now.slice(5, 7)} ${now.slice(11)} МСК · <u>изменить</u></div>
@@ -925,6 +981,50 @@ function renderLog() {
     </div>`).join('') : '<div class="empty">Пока пусто</div>';
 }
 
+// ------------------------------------------------------------------ метки-лампочки
+const TAGC = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet'];
+const tagInfo = c => ((S.data && S.data.tags) || []).find(t => t.code === c) || { code: c, color: c, name: '' };
+const lamp = (c, attrs, big) => `<button class="lamp${c ? '' : ' off'}${big ? ' big' : ''}" ${c ? `data-c="${c}"` : ''} ${attrs || ''} aria-label="метка"></button>`;
+S.tf = { open: '', orders: '', hist: '' };     // фильтр по метке: '' — все, 'none' — без метки
+const tagPass = (view, tag) => !S.tf[view] || (S.tf[view] === 'none' ? !tag : tag === S.tf[view]);
+function tagBar(view, items) {
+  const used = new Set(items.map(x => x.tag || 'none'));
+  if (used.size < 2 && !S.tf[view] && !items.some(x => x.tag)) return '';      // меток нет — полоску не показываем
+  const f = S.tf[view];
+  return `<div class="tagbar" data-tb="${view}"><button class="all${f ? '' : ' sel'}" data-f="">все</button>` +
+    TAGC.filter(c => used.has(c)).map(c => lamp(c, `data-f="${c}" title="${esc(tagInfo(c).name || tagInfo(c).color)}"`).replace('class="lamp', `class="lamp${f === c ? ' sel' : ''}`)).join('') +
+    (used.has('none') ? lamp('', 'data-f="none" title="без метки"').replace('class="lamp', `class="lamp${f === 'none' ? ' sel' : ''}`) : '') +
+    `<span class="cnt">${f ? esc(f === 'none' ? 'без метки' : (tagInfo(f).name || tagInfo(f).color)) : ''}</span></div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-tb] [data-f]'); if (!b) return;
+  e.stopPropagation();
+  const view = b.closest('[data-tb]').dataset.tb, f = b.dataset.f;
+  S.tf[view] = S.tf[view] === f ? '' : f;
+  if (view === 'hist') renderHist(); else render();
+}, true);
+/** Выбор цвета: kind — orders/open/closed, ids — номера сделок (у позиции из нескольких — все). */
+function tagSheet(kind, ids, cur, title) {
+  openSheet(`
+    <h3>Метка</h3><div class="sub">${esc(title || '')}</div>
+    <div id="tagOpts">${TAGC.map(c => { const t = tagInfo(c); return `<div class="tagopt${c === cur ? ' cur' : ''}" data-t="${c}">${lamp(c, '', true)}<b>${esc(t.color)}</b><span>${esc(t.name || '')}</span></div>`; }).join('')}
+      <div class="tagopt${!cur ? ' cur' : ''}" data-t="">${lamp('', '', true)}<b>Без метки</b></div></div>
+    <div class="quiet" style="margin-top:10px">что значит каждый цвет — в ⚙ → «Метки»</div>`);
+  $('tagOpts').onclick = e => { const o = e.target.closest('[data-t]'); if (!o) return;
+    runSteps(null, [['tag', { kind, ids, tag: o.dataset.t }]]); };
+}
+
+// ------------------------------------------------------------------ подсветка пустой стратегии
+const hlOn = () => store.get('journal.hl', true);
+function needScan(root) {
+  (root || document).querySelectorAll('.needw').forEach(w => {
+    const i = w.querySelector('input'); w.classList.toggle('need', !!i && hlOn() && !i.value.trim());
+  });
+}
+document.addEventListener('input', e => { const w = e.target.closest && e.target.closest('.needw'); if (w) needScan(w.parentNode); });
+document.addEventListener('change', e => { const w = e.target.closest && e.target.closest('.needw'); if (w) needScan(w.parentNode); });
+const stratInput = (id, list, value, ph) => `<div class="needw"><input id="${id}" list="${id}Dl" value="${esc(value || '')}" placeholder="${ph}" autocomplete="off" style="font:15px var(--sans)"></div><datalist id="${id}Dl">${(list || []).map(s => `<option value="${esc(s)}">`).join('')}</datalist>`;
+
 // ------------------------------------------------------------------ итоги
 const ymFmt = new Intl.DateTimeFormat('en-CA', Object.assign({ year: 'numeric', month: '2-digit' }, MSK));
 const ymOf = d => { const p = Object.fromEntries(ymFmt.formatToParts(new Date(d)).map(x => [x.type, x.value])); return +p.year * 12 + (+p.month - 1); };
@@ -973,6 +1073,11 @@ function renderStats() {
   const rowsTbl = list => list.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="muted">${v.n}</td><td class="muted">${pct(v.w / v.n)}</td><td class="${cls(v.pnl)}">${rub(v.pnl, true)}</td></tr>`).join('');
   const st = by(T, t => t.strategy || 'без стратегии').sort((x, y) => y[1].pnl - x[1].pnl);
   $('byStrat').innerHTML = st.length ? rowsTbl(st) : '<tr><td class="muted">нет сделок</td></tr>';
+  const ex2 = by(T, t => t.exitStrat || 'не указана').sort((x, y) => y[1].pnl - x[1].pnl);
+  $('byExit').innerHTML = ex2.length ? rowsTbl(ex2) : '<tr><td class="muted">нет сделок</td></tr>';
+  const tg = by(T.filter(t => t.tag), t => t.tag).sort((x, y) => y[1].pnl - x[1].pnl);
+  $('byTagH').classList.toggle('hidden', !tg.length); $('byTagP').classList.toggle('hidden', !tg.length);
+  $('byTag').innerHTML = tg.map(([k, v]) => `<tr><td>${lamp(k).replace('<button', '<span').replace('</button>', '</span>')} &nbsp;${esc(tagInfo(k).name || tagInfo(k).color)}</td><td class="muted">${v.n}</td><td class="muted">${pct(v.w / v.n)}</td><td class="${cls(v.pnl)}">${rub(v.pnl, true)}</td></tr>`).join('');
   const tk = by(T, t => t.ticker).sort((x, y) => y[1].pnl - x[1].pnl);
   const tkShow = tk.length > 8 ? tk.slice(0, 4).concat([null], tk.slice(-4)) : tk;
   $('byTicker').innerHTML = tkShow.length ? tkShow.map(x => x ? rowsTbl([x]) : '<tr><td class="muted">…</td><td></td><td></td><td></td></tr>').join('') : '<tr><td class="muted">нет сделок</td></tr>';
@@ -1022,11 +1127,12 @@ function drawBars(T, E) {
 
 function renderHist() {
   const q = $('hSearch').value.trim().toUpperCase(), f = S.hFilter;
-  const L = (S.statT || []).filter(t => (!q || String(t.ticker).toUpperCase().includes(q) || String(t.strategy || '').toUpperCase().includes(q)) &&
+  const L0 = (S.statT || []).filter(t => (!q || String(t.ticker).toUpperCase().includes(q) || String(t.strategy || '').toUpperCase().includes(q) || String(t.exitStrat || '').toUpperCase().includes(q)) &&
     (f === 'all' || (f === 'win' && t.pnl > 0) || (f === 'loss' && t.pnl <= 0) || f === t.side));
+  const L = L0.filter(t => tagPass('hist', t.tag));
   $('histN').textContent = L.length + ' · ' + rub(L.reduce((s, t) => s + t.pnl, 0), true);
-  $('hist').innerHTML = L.length ? L.slice(0, S.hLimit).map(t => `<div class="row" style="cursor:default">
-      <div class="l1"><span class="tk">${esc(t.ticker)}</span>${sideTag(t.side)}<span class="q">${t.qty}</span>
+  $('hist').innerHTML = tagBar('hist', L0) + (L.length ? L.slice(0, S.hLimit).map(t => `<div class="row" style="cursor:default">
+      <div class="l1">${lamp(t.tag, `data-tag="closed" data-ids="${t.id}"`)}<span class="tk">${esc(t.ticker)}</span>${sideTag(t.side)}<span class="q">${t.qty}</span>
         <span class="v ${cls(t.pnl)}">${rub(t.pnl, true)}</span></div>
       <div class="l2 h">
         <div><span>вход</span>${fp(t.entry, t.ticker)}</div>
@@ -1034,8 +1140,8 @@ function renderHist() {
         <div><span>R</span>${t.r != null && isFinite(t.r) ? dec(t.r, 2) : '—'}</div>
         <div class="dt"><i>откр.</i> ${t.opened ? dd(t.opened) : '—'}<br><i>закр.</i> ${dd(t.closed)}</div>
       </div>
-      ${t.strategy || t.note ? `<div class="l3">${esc([t.strategy, t.note].filter(Boolean).join(' · '))}</div>` : ''}
-    </div>`).join('') : '<div class="empty">Нет сделок</div>';
+      ${t.strategy || t.exitStrat || t.note ? `<div class="l3">${esc([t.strategy, t.exitStrat ? 'выход: ' + t.exitStrat : '', t.note].filter(Boolean).join(' · '))}</div>` : ''}
+    </div>`).join('') : '<div class="empty">Нет сделок</div>');
   $('hMore').classList.toggle('hidden', L.length <= S.hLimit);
 }
 
@@ -1052,6 +1158,8 @@ function fillSettings() {
   const st = S.data.settings;
   Object.entries(ST_IDS).forEach(([k, id]) => { $(id).value = PCT.includes(k) ? pctStr(st[k]) : (st[k] ?? ''); });
   $('stStrat').value = (S.data.strategies || []).join('\n');
+  $('stExit').value = (S.data.exitStrategies || []).join('\n');
+  $('stTags').innerHTML = (S.data.tags || []).map((t, i) => `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">${lamp(t.code, '', true)}<input id="stTag${i}" value="${esc(t.name || '')}" placeholder="${esc(t.color)}" style="height:34px;font:14px var(--sans)"></div>`).join('');
   $('impTo').textContent = S.data.importedTo ? 'загружено до ' + dd(S.data.importedTo) : '';
   const kinds = [...new Set((S.data.expenses || []).map(e => e.kind).filter(Boolean))].sort();
   $('exKinds').innerHTML = kinds.map(k => `<option value="${esc(k)}">`).join('');
@@ -1069,9 +1177,12 @@ $('stGo').onclick = async () => {
     s[k] = PCT.includes(k) ? v / 100 : v;
   }
   const strategies = $('stStrat').value.split('\n').map(x => x.trim()).filter(Boolean);
+  const exitStrategies = $('stExit').value.split('\n').map(x => x.trim()).filter(Boolean);
+  const tagNames = (S.data.tags || []).map((t, i) => $('stTag' + i).value.trim());
+  S.data.exitStrategies = exitStrategies; (S.data.tags || []).forEach((t, i) => { t.name = tagNames[i]; });
   Object.assign(S.data.settings, s); S.data.strategies = strategies; render();       // сразу на экране
   msgTo('stMsg', 'Сохраняю…', 'muted'); $('stGo').disabled = true;
-  const j = await apiPost('settings', { settings: s, strategies });
+  const j = await apiPost('settings', { settings: s, strategies, exitStrategies, tagNames });
   $('stGo').disabled = false;
   msgTo('stMsg', j.ok ? '✓ Сохранено в журнал' : '✗ ' + j.error, j.ok ? 'pos' : 'neg');
 };
@@ -1126,6 +1237,13 @@ $('refresh').onclick = async () => {
   S.busy = false; spin(false);
   toast(j.ok ? (j.msg || 'Обновлено') : '✗ ' + j.error);
 };
+document.addEventListener('click', e => {
+  const l = e.target.closest('.lamp[data-tag]'); if (!l) return;
+  e.stopPropagation();
+  const kind = l.dataset.tag, ids = l.dataset.ids.split(',');
+  const row = l.closest('.row'), title = row ? row.querySelector('.tk').textContent : '';
+  tagSheet(kind, ids, l.dataset.c || '', title);
+}, true);
 $('openList').onclick = e => {
   const c = e.target.closest('[data-g]'); if (!c) return;
   const g = groups().find(x => x.key === c.dataset.g); if (g) positionSheet(g);
@@ -1173,6 +1291,8 @@ function setTheme(t) {
   document.querySelectorAll('#theme button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   if (S.view === 'stats') renderStats();
 }
+$('hlSw').checked = hlOn();
+$('hlSw').onchange = () => { store.set('journal.hl', $('hlSw').checked); render(); needScan(); };
 $('theme').onclick = e => { const b = e.target.closest('button'); if (b) setTheme(b.dataset.t); };
 setTheme(document.documentElement.dataset.theme || 'emerald');
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.view !== 'setup' && S.view !== 'calc') load(); });

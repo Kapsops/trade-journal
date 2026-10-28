@@ -103,6 +103,7 @@ const OPEN = {
     { k: 'NOTE',     h: 'Заметка',     t: 'text',     w: 160, hide: true },
     { k: 'SHOT',     h: 'Скрин',       t: 'link',     w: 80,  hide: true },
     { k: 'SL0',      h: 'SL план',     t: 'price',    w: 70,  hide: true },
+    { k: 'TAG',      h: 'Метка',       t: 'text',     w: 60,  hide: true },   // цвет лампочки: red…violet
   ],
 };
 
@@ -124,6 +125,7 @@ const ORDERS = {
     // ---- свёрнутая группа ----
     { k: 'ID',       h: 'ID',        t: 'qty',      w: 44,  hide: true },
     { k: 'NOTE',     h: 'Заметка',   t: 'text',     w: 160, hide: true },
+    { k: 'TAG',      h: 'Метка',     t: 'text',     w: 60,  hide: true },
   ],
 };
 
@@ -150,6 +152,9 @@ const CLOSED = {
     { k: 'SHOT',     h: 'Скрин',      t: 'link',     w: 80 },
     { k: 'RISK',     h: 'Риск план ₽', t: 'money',   w: 72, f: 'closedRisk' },
     { k: 'PV',       h: '₽/пункт',    t: 'num',      w: 64 },  // зафиксировано при закрытии
+    { k: 'TILT',     h: 'Тильт',      t: 'text',     w: 170, f: 'closedTilt' },  // ⚠ 3+ сделки по инструменту за день
+    { k: 'EXIT_STRAT', h: 'Стратегия выхода', t: 'text', w: 130 },
+    { k: 'TAG',      h: 'Метка',      t: 'text',     w: 60 },
   ],
 };
 
@@ -208,6 +213,10 @@ const SETTINGS = [
 
 const STRATEGY_DEFAULTS = ['Пробой', 'Отбой от уровня', 'Тренд', 'Контртренд', 'Новости'];
 const STRATEGY_ROWS = 30; // сколько строк отведено под список стратегий
+const EXIT_STRATEGY_DEFAULTS = ['Стоп', 'Тейк', 'Безубыток', 'Частичная фиксация', 'Трейлинг', 'По времени', 'Руками / эмоции'];
+/** Цветные метки-лампочки: код цвета и подпись по умолчанию (подписи меняются в приложении). */
+const TAGS = [['red', 'Красный', 'особый контроль'], ['orange', 'Оранжевый', ''], ['yellow', 'Жёлтый', 'внимание'],
+  ['green', 'Зелёный', ''], ['cyan', 'Голубой', ''], ['blue', 'Синий', ''], ['violet', 'Фиолетовый', '']];
 
 /** Галочка-кнопка «⟳ обновить всё» в сводке над «Открытыми» (строка 1). */
 const REFRESH_COL = 11;
@@ -394,7 +403,12 @@ function tableFormulas_() {
   const closedDur = '=ARRAYFORMULA({' + head(CLOSED, 'DUR') + ';IF((' + x('OPENED') + '="")+(' + x('CLOSED') + '=""),,' +
     x('CLOSED') + '-' + x('OPENED') + ')})';
 
-  return { openPnl, openR, openStop, name, openMargin, openRisk, orderRisk, orderRR, closedR, closedRR, closedRisk, closedDur };
+  // Тильт: 3 и больше сделок по одному инструменту за день (считаются разные ID)
+  const closedTilt = '=ARRAYFORMULA({' + head(CLOSED, 'TILT') + ';IF(' + x('ID') + '="",,LET(c,MAP(' + x('ID') + ',' + x('OPENED') + ',' + x('TICKER') +
+    ',LAMBDA(i,b,t,IF(t="",0,COUNTUNIQUEIFS(' + x('ID') + ',' + x('TICKER') + ',t,' + x('OPENED') + ',">="&INT(b),' + x('OPENED') + ',"<"&(INT(b)+1))))),' +
+    'IF(c>=3,"⚠ тильт: "&c&" сделки за день","")))})';
+
+  return { openPnl, openR, openStop, name, openMargin, openRisk, orderRisk, orderRR, closedR, closedRR, closedRisk, closedDur, closedTilt };
 }
 
 /** Выпадающие списки и галочки на строках данных. */
@@ -512,12 +526,12 @@ function buildOpenSummary_(sh) {
 function buildSettings_(ss) {
   const sh = ensureSheet_(ss, SH.SETTINGS);
   sh.setFrozenRows(0);
-  fitGrid_(sh, Math.max(SETTINGS.length, STRATEGY_ROWS) + 1, 4);
+  fitGrid_(sh, Math.max(SETTINGS.length, STRATEGY_ROWS) + 1, 9);
   paint_(sh);
-  sh.getRange(1, 1, 1, 4).setValues([['Параметр', 'Значение', '', 'Стратегии']])
+  sh.getRange(1, 1, 1, 9).setValues([['Параметр', 'Значение', '', 'Стратегии входа', '', 'Стратегии выхода', '', 'Метка', 'Что значит']])
     .setBackground(THEME.head).setFontColor(THEME.muted).setFontSize(9);
-  sh.getRange(1, 3).setBackground(THEME.bg);
-  [280, 120, 16, 170].forEach((w, i) => sh.setColumnWidth(i + 1, w));
+  [3, 5, 7].forEach(c => sh.getRange(1, c).setBackground(THEME.bg));
+  [280, 120, 16, 170, 16, 170, 16, 90, 170].forEach((w, i) => sh.setColumnWidth(i + 1, w));
   sh.getRange(2, 2, SETTINGS.length, 1).setFontFamily(THEME.mono).setHorizontalAlignment('right');
   sh.getRange(1, 2).setHorizontalAlignment('right');
 
@@ -540,6 +554,17 @@ function buildSettings_(ss) {
     sh.getRange(2, 4, STRATEGY_DEFAULTS.length, 1).setValues(STRATEGY_DEFAULTS.map(s => [s]));
   }
   ss.setNamedRange('STRATEGIES', strat);
+
+  const exits = sh.getRange(2, 6, STRATEGY_ROWS, 1);
+  if (exits.getValues().every(r => r[0] === '')) {
+    sh.getRange(2, 6, EXIT_STRATEGY_DEFAULTS.length, 1).setValues(EXIT_STRATEGY_DEFAULTS.map(s => [s]));
+  }
+  ss.setNamedRange('EXIT_STRATEGIES', exits);
+
+  sh.getRange(2, 8, TAGS.length, 1).setValues(TAGS.map(t => [t[1]])).setFontColor(THEME.muted);
+  const tagNames = sh.getRange(2, 9, TAGS.length, 1);
+  if (tagNames.getValues().every(r => r[0] === '')) tagNames.setValues(TAGS.map(t => [t[2]]));
+  ss.setNamedRange('TAG_NAMES', tagNames);
   sh.setFrozenRows(1);
 }
 
@@ -1140,7 +1165,7 @@ function fillOrder(d) {
     if (!already) {
       appendRows_(SH.OPEN, OPEN, [{
         TICKER: o.TICKER, SIDE: o.SIDE, QTY: num_(d.qty), ENTRY: num_(d.price), SL: o.SL, TP: o.TP,
-        ID: o.ID, OPENED: parseTime_(d.time), STRATEGY: o.STRATEGY, NOTE: joinNote_(o.NOTE, d.note), SL0: o.SL,
+        ID: o.ID, OPENED: parseTime_(d.time), STRATEGY: d.strategy || o.STRATEGY, NOTE: joinNote_(o.NOTE, d.note), SL0: o.SL, TAG: o.TAG || '',
       }]);
       SpreadsheetApp.flush();
       if (!findById_(SH.OPEN, OPEN, d.id)) throw new Error('Не удалось записать в «Открытые», заявка оставлена');
@@ -1172,6 +1197,7 @@ function closePosition(d) {
     if (!(q > 0)) throw new Error('Объём должен быть больше нуля');
 
     const row = closedRow_(p, q, num_(d.price), parseTime_(d.time), joinNote_(p.NOTE, d.note));
+    row.EXIT_STRAT = String(d.exitStrategy || '').trim();
     const at = appendRows_(SH.CLOSED, CLOSED, [row]);
     try {
       const sh = sheet_(SH.OPEN);
@@ -1201,7 +1227,7 @@ function closedRow_(p, q, exit, time, note, pnlOverride, feeOverride) {
   return {
     ID: p.ID, OPENED: p.OPENED, CLOSED: time, TICKER: p.TICKER, SIDE: p.SIDE, QTY: q,
     ENTRY: p.ENTRY, EXIT: exit, SL: p.SL0 !== '' && p.SL0 != null ? p.SL0 : p.SL, TP: p.TP,
-    FEE: round2_(fee || 0), PNL: round2_(pnl), STRATEGY: p.STRATEGY, NOTE: note, SHOT: p.SHOT,
+    FEE: round2_(fee || 0), PNL: round2_(pnl), STRATEGY: p.STRATEGY, NOTE: note, SHOT: p.SHOT, TAG: p.TAG || '',
     PV: spec ? spec.pv : '',
   };
 }
@@ -1216,7 +1242,7 @@ function addTrade(d) {
     const p = {
       ID: nextId_(), TICKER: t, SIDE: d.side, QTY: num_(d.qty), ENTRY: num_(d.entry),
       SL: optNum_(d.sl), TP: optNum_(d.tp), SL0: optNum_(d.sl), OPENED: parseTime_(d.opened),
-      STRATEGY: d.strategy || '', NOTE: d.note || '', SHOT: d.shot || '',
+      STRATEGY: d.strategy || '', NOTE: d.note || '', SHOT: d.shot || '', TAG: d.tag || '',
     };
     if (!(p.QTY > 0) || !(p.ENTRY > 0)) throw new Error('Объём и цена входа должны быть больше нуля');
 
@@ -2211,16 +2237,16 @@ function snapshot_(lite) {
   const open = rows_(SH.OPEN, OPEN).map(o => ({
     id: o.ID, ticker: o.TICKER, name: o.NAME, side: o.SIDE, qty: o.QTY, entry: o.ENTRY, price: o.PRICE,
     sl: o.SL, tp: o.TP, sl0: o.SL0, pnl: o.PNL, r: o.PNLR, stop: o.STOPPNL, margin: o.MARGIN, risk: o.RISK,
-    opened: o.OPENED, strategy: o.STRATEGY, note: o.NOTE,
+    opened: o.OPENED, strategy: o.STRATEGY, note: o.NOTE, tag: o.TAG,
   }));
   const orders = rows_(SH.ORDERS, ORDERS).map(o => ({
     id: o.ID, created: o.CREATED, ticker: o.TICKER, side: o.SIDE, qty: o.QTY, entry: o.ENTRY,
-    sl: o.SL, tp: o.TP, risk: o.RISK, rr: o.RR, strategy: o.STRATEGY, note: o.NOTE,
+    sl: o.SL, tp: o.TP, risk: o.RISK, rr: o.RR, strategy: o.STRATEGY, note: o.NOTE, tag: o.TAG,
   }));
   const closed = lite ? null : rows_(SH.CLOSED, CLOSED).map(o => ({
     id: o.ID, opened: o.OPENED, closed: o.CLOSED, ticker: o.TICKER, side: o.SIDE, qty: o.QTY,
     entry: o.ENTRY, exit: o.EXIT, sl: o.SL, tp: o.TP, fee: o.FEE, pnl: o.PNL, r: o.PNLR,
-    strategy: o.STRATEGY, note: o.NOTE,
+    strategy: o.STRATEGY, note: o.NOTE, exitStrat: o.EXIT_STRAT, tag: o.TAG,
   }));
   const expenses = lite ? null : rows_(SH.EXP, EXP).map(o => ({ date: o.DATE, kind: o.KIND, amount: o.AMOUNT, note: o.NOTE }));
   const specs = {};
@@ -2232,7 +2258,10 @@ function snapshot_(lite) {
   const quotesAt = sheet_(SH.OPEN).getRange(OPEN.SUMMARY, C_(OPEN).PNLR).getValue();
   const refAt = SpreadsheetApp.getActive().getRangeByName('SET_REF_UPDATED').getValue();
   const strategies = SpreadsheetApp.getActive().getRangeByName('STRATEGIES').getValues().map(r => r[0]).filter(String);
-  return { log: lastLog_(30),
+  const list = (name, def) => { const r = SpreadsheetApp.getActive().getRangeByName(name); return r ? r.getValues().map(x => x[0]) : def; };
+  const exitStrategies = list('EXIT_STRATEGIES', EXIT_STRATEGY_DEFAULTS).filter(String);
+  const tagNames = list('TAG_NAMES', TAGS.map(t => t[2])).map(String);
+  return { log: lastLog_(30), exitStrategies, tags: TAGS.map((t, i) => ({ code: t[0], color: t[1], name: tagNames[i] || '' })),
     ok: true, lite: !!lite, at: new Date(), quotesAt: quotesAt instanceof Date ? quotesAt : null,
     refAt: refAt instanceof Date ? refAt : null, importedTo: importWatermark_() || null,
     settings: { deposit: s.deposit, riskTrade: s.riskTrade, riskTotal: s.riskTotal, commFut: s.commFut,
@@ -2266,15 +2295,18 @@ function appAction_(d) {
   let res;
   switch (d.action) {
     case 'add':    res = addTrade({ ticker: d.ticker, side: d.side, qty: d.qty, entry: d.entry, sl: d.sl, tp: d.tp,
-                     opened: d.time, strategy: d.strategy || '', note: d.note || '', token: d.token });
+                     opened: d.time, strategy: d.strategy || '', note: d.note || '', tag: d.tag || '', token: d.token });
                    if (res.ok && d.strategy) addStrategy_(String(d.strategy).trim()); break;
     case 'editOrder': res = locked_(d.token, () => editOrder_(d)); break;
-    case 'fill':   res = fillOrder({ id: d.id, price: d.price, qty: d.qty, time: d.time, note: d.note || '', token: d.token }); break;
+    case 'fill':   res = fillOrder({ id: d.id, price: d.price, qty: d.qty, time: d.time, note: d.note || '', strategy: d.strategy || '', token: d.token });
+                   if (res.ok && d.strategy) addStrategy_(String(d.strategy).trim()); break;
     case 'cancel': res = locked_(d.token, () => {
                      if (!deleteById_(SH.ORDERS, ORDERS, d.id)) return 'Заявка уже удалена';
                      return 'Заявка #' + d.id + ' отменена';
                    }); break;
-    case 'close':  res = closePosition({ id: d.id, price: d.price, qty: d.qty, time: d.time, note: d.note || '', token: d.token }); break;
+    case 'close':  res = closePosition({ id: d.id, price: d.price, qty: d.qty, time: d.time, note: d.note || '', exitStrategy: d.exitStrategy || '', token: d.token });
+                   if (res.ok && d.exitStrategy) addListItem_('EXIT_STRATEGIES', d.exitStrategy); break;
+    case 'tag':    res = locked_(d.token, () => setTag_(d)); break;
     case 'edit':   res = locked_(d.token, () => editOpen_(d)); break;
     case 'settings': res = locked_(d.token, () => saveSettings_(d)); break;
     case 'expense':  res = locked_(d.token, () => addExpense_(d)); break;
@@ -2308,12 +2340,44 @@ function saveSettings_(d) {
     if (!(v >= 0)) throw new Error('Неверное значение: ' + k);
     ss.getRangeByName(map[k]).setValue(v);
   });
-  if (Array.isArray(d.strategies)) {
-    const r = ss.getRangeByName('STRATEGIES'), n = r.getNumRows();
-    const list = [...new Set(d.strategies.map(x => String(x).trim()).filter(Boolean))].slice(0, n);
+  const writeList = (name, arr) => {
+    const r = ss.getRangeByName(name); if (!r) return;
+    const n = r.getNumRows(), list = [...new Set(arr.map(x => String(x).trim()).filter(Boolean))].slice(0, n);
     r.setValues(Array.from({ length: n }, (_, i) => [list[i] || '']));
+  };
+  if (Array.isArray(d.strategies)) writeList('STRATEGIES', d.strategies);
+  if (Array.isArray(d.exitStrategies)) writeList('EXIT_STRATEGIES', d.exitStrategies);
+  if (Array.isArray(d.tagNames)) {
+    const r = ss.getRangeByName('TAG_NAMES');
+    if (r) r.setValues(Array.from({ length: r.getNumRows() }, (_, i) => [String(d.tagNames[i] || '').trim()]));
   }
   return 'Настройки сохранены';
+}
+
+const TAG_CODES = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet'];
+/** Цветная метка на заявке, открытой позиции или закрытой сделке (на все строки с этим ID). '' — снять. */
+function setTag_(d) {
+  const tag = String(d.tag || '');
+  if (tag && !TAG_CODES.includes(tag)) throw new Error('Неизвестный цвет: ' + tag);
+  const kinds = { orders: [SH.ORDERS, ORDERS], open: [SH.OPEN, OPEN], closed: [SH.CLOSED, CLOSED] };
+  const k = kinds[d.kind]; if (!k) throw new Error('Неизвестно, где метка: ' + d.kind);
+  const ids = (Array.isArray(d.ids) ? d.ids : [d.id]).map(String);
+  const sh = sheet_(k[0]), c = C_(k[1]);
+  const last = lastDataRow_(sh, k[1].FIRST, keyCol_(k[1]));
+  if (last < k[1].FIRST) throw new Error('Не найдено');
+  const n = last - k[1].FIRST + 1, rng = sh.getRange(k[1].FIRST, c.ID, n, 1).getValues();
+  let cnt = 0;
+  rng.forEach((r, i) => { if (ids.includes(String(r[0]))) { sh.getRange(k[1].FIRST + i, c.TAG).setValue(tag); cnt++; } });
+  if (!cnt) throw new Error('Не найдено: #' + ids.join(', #'));
+  return tag ? 'Метка поставлена' : 'Метка снята';
+}
+
+/** Добавить значение в именованный список (если его там нет). */
+function addListItem_(name, value) {
+  const r = SpreadsheetApp.getActive().getRangeByName(name); if (!r) return;
+  const vals = r.getValues().map(v => String(v[0]).trim()), v = String(value).trim();
+  if (!v || vals.some(x => x.toLowerCase() === v.toLowerCase())) return;
+  const i = vals.indexOf(''); if (i >= 0) r.getCell(i + 1, 1).setValue(v);
 }
 
 /** Доход/расход вне сделок → «Расходы». amount: расход со знаком минус. */

@@ -130,6 +130,19 @@ html.embed .wrap{padding-top:4px}
 #side.short::before{transform:translateX(calc(100% + 4px));background:radial-gradient(120% 140% at 30% 0%,var(--o-hi),var(--loss) 50%,var(--r-lo));box-shadow:0 0 18px rgba(var(--r-rgb),calc(.55*var(--gk)))}
 #side button,#side button.on.l,#side button.on.s{position:relative;z-index:1;background:none;box-shadow:none;transition:color .25s}
 #side button.on.l{color:#04140b}#side button.on.s{color:#1a0602}
+/* подсветка пустой стратегии: оранжево-белое свечение медленно плывёт по рамке, вокруг — ореол из точек */
+@property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes needSpin{to{--ang:360deg}}
+.needw{position:relative;border-radius:12px}
+.needw.need::before{content:'';position:absolute;inset:-1.5px;border-radius:13.5px;padding:1.5px;pointer-events:none;z-index:1;
+  background:conic-gradient(from var(--ang),transparent 0 50%,rgba(255,140,60,.25) 60%,#ff9a4a 72%,#fff 78%,#ff9a4a 84%,transparent 96%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+  animation:needSpin 7s linear infinite}
+.needw.need::after{content:'';position:absolute;inset:-12px;border-radius:22px;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,170,110,.55) .8px,transparent 1.3px) 0 0/6px 6px;
+  -webkit-mask:conic-gradient(from var(--ang),transparent 0 48%,#000 70%,#000 80%,transparent 98%);mask:conic-gradient(from var(--ang),transparent 0 48%,#000 70%,#000 80%,transparent 98%);
+  filter:blur(.3px);opacity:.75;animation:needSpin 7s linear infinite}
+.needw.need input{box-shadow:var(--inset),0 0 18px rgba(255,140,60,.18)}
 </style>
 </head>
 <body>
@@ -217,7 +230,7 @@ html.embed .wrap{padding-top:4px}
   <!-- Отправка -->
   <div class="card">
     <div class="row">
-      <div><label>Стратегия</label><input id="strategy" list="stratList" autocomplete="off" placeholder="выберите или впишите" style="font-family:var(--sans)"><datalist id="stratList"></datalist></div>
+      <div><label>Стратегия</label><div class="needw"><input id="strategy" list="stratList" autocomplete="off" placeholder="выберите или впишите" style="font-family:var(--sans)"></div><datalist id="stratList"></datalist></div>
       <div><label>Заметка</label><input id="note" style="font-family:var(--sans)"></div>
     </div>
     <ul class="sent" id="sent"></ul>
@@ -711,6 +724,16 @@ $('sSave').onclick = () => {
     tk.placeholder = 'MOEX недоступна: ' + e.message;
   }
   calc();
+})();
+
+// Подсветка пустой стратегии (включается в ⚙ приложения; по умолчанию включена)
+(function () {
+  const w = $('strategy').closest('.needw');
+  const upd = () => { let on = true; try { const v = localStorage.getItem('journal.hl'); if (v !== null) on = JSON.parse(v); } catch (e) {}
+    w.classList.toggle('need', on && !$('strategy').value.trim()); };
+  ['input', 'change', 'blur'].forEach(ev => $('strategy').addEventListener(ev, () => setTimeout(upd, 0)));
+  addEventListener('storage', e => { if (e.key === 'journal.hl') upd(); });
+  setTimeout(upd, 500);
 })();
 </script>
 </body>

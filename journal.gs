@@ -2448,6 +2448,7 @@ function editOpen_(d) {
   if ('sl' in d) { sh.getRange(pos.row, c.SL).setValue(optNum_(d.sl)); parts.push('SL ' + (d.sl === '' ? '—' : d.sl)); }
   if ('tp' in d) { sh.getRange(pos.row, c.TP).setValue(optNum_(d.tp)); parts.push('TP ' + (d.tp === '' ? '—' : d.tp)); }
   if ('note' in d) { sh.getRange(pos.row, c.NOTE).setValue(String(d.note || '')); parts.push('заметка'); }
+  if ('strategy' in d) { const st = String(d.strategy || '').trim(); sh.getRange(pos.row, c.STRATEGY).setValue(st); if (st) addStrategy_(st); parts.push('стратегия'); }
   return '#' + d.id + ' ' + pos.obj.TICKER + ': ' + parts.join(', ');
 }
 /**

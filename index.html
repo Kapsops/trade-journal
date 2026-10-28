@@ -317,7 +317,7 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
     <div class="sect"><h2>Последние события</h2><span>все устройства</span></div>
     <div class="panel" id="logList"></div>
 
-    <div class="sect"><h2>Тема</h2><span>версия 28.10 · 12</span></div>
+    <div class="sect"><h2>Тема</h2><span>версия 28.10 · 13</span></div>
     <div class="panel pad">
       <div class="seg" id="theme" style="margin:0"><button data-t="mono">Монохром</button><button data-t="emerald">Приглушённая</button><button data-t="neon">Неон</button></div>
       <label class="swt"><span>Подсвечивать пустую стратегию</span><input type="checkbox" id="hlSw"></label>
@@ -670,7 +670,10 @@ function dealSheet(p, g) {
       <div><label class="f">Цена выхода</label><input id="xPrice" inputmode="decimal" value="${p.price ?? ''}"></div>
       <div><label class="f">Объём из ${p.qty}</label><div class="inl"><input id="xQty" inputmode="numeric" value="${p.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
     </div>
-    <div class="fr"><div>${stratInput('xExit', S.data.exitStrategies, '', 'стратегия выхода: стоп, тейк, трейлинг…')}</div></div>
+    <div class="fr">
+      <div><label class="f">Стратегия входа</label>${stratInput('xEntry', S.data.strategies, p.strategy, 'вход')}</div>
+      <div><label class="f">Стратегия выхода</label>${stratInput('xExit', S.data.exitStrategies, '', 'выход')}</div>
+    </div>
     <div class="fr"><div><textarea id="xNote" rows="1" placeholder="заметка"></textarea></div></div>
     <div class="quiet" id="tLine">время ${now.slice(8, 10)}.${now.slice(5, 7)} ${now.slice(11)} МСК · <u>изменить</u></div>
     <div class="fr hidden" id="tBox"><div><input id="xTime" type="datetime-local" value="${now}"></div></div>
@@ -695,6 +698,7 @@ function dealSheet(p, g) {
   $('xHalf').onclick = () => { $('xQty').value = Math.max(1, Math.floor(p.qty / 2)); upd(); };
   $('eBe').onclick = () => { $('eSl').value = p.entry; updE(); };
   $('tLine').onclick = () => { $('tLine').classList.add('hidden'); $('tBox').classList.remove('hidden'); };
+  bindEntryStrat([p]);
   $('eLine').onclick = () => { $('eLine').classList.add('hidden'); $('eBox').classList.remove('hidden'); };
   upd(); updE();
   $('xGo').onclick = () => {
@@ -716,7 +720,10 @@ function groupCloseSheet(g) {
       <div><label class="f">Цена выхода</label><input id="xPrice" inputmode="decimal" value="${g.price ?? ''}"></div>
       <div><label class="f">Объём</label><div class="inl"><input id="xQty" inputmode="numeric" value="${g.qty}"><button class="btn xs" id="xHalf">½</button></div></div>
     </div>
-    <div class="fr"><div>${stratInput('xExit', S.data.exitStrategies, '', 'стратегия выхода: стоп, тейк, трейлинг…')}</div></div>
+    <div class="fr">
+      <div><label class="f">Стратегия входа${g.parts.length > 1 ? ' · для всех' : ''}</label>${stratInput('xEntry', S.data.strategies, g.parts.every(p => p.strategy === g.parts[0].strategy) ? g.parts[0].strategy : '', g.parts.some(p => p.strategy) ? 'разные' : 'вход')}</div>
+      <div><label class="f">Стратегия выхода</label>${stratInput('xExit', S.data.exitStrategies, '', 'выход')}</div>
+    </div>
     <div class="fr"><div><textarea id="xNote" rows="1" placeholder="заметка"></textarea></div></div>
     <div class="quiet" id="tLine">время ${mskNow().slice(8, 10)}.${mskNow().slice(5, 7)} ${mskNow().slice(11)} МСК · <u>изменить</u></div>
     <div class="fr hidden" id="tBox"><div><input id="xTime" type="datetime-local" value="${mskNow()}"></div></div>
@@ -724,6 +731,7 @@ function groupCloseSheet(g) {
     <div class="msg" id="sMsg"></div>`);
   bindBack(g);
   $('tLine').onclick = () => { $('tLine').classList.add('hidden'); $('tBox').classList.remove('hidden'); };
+  bindEntryStrat(g.parts);
   const upd = () => { const x = num($('xPrice').value), q = Math.min(num($('xQty').value), g.qty);
     const v = allocate(g.parts, q).reduce((s, [p, n]) => s + pnlOf(p, x, n), 0); $('pv').textContent = isFinite(v) ? rub(v, true) : '—'; };
   ['xPrice', 'xQty'].forEach(id => $(id).oninput = upd);
@@ -767,6 +775,25 @@ function groupEditSheet(g) {
   };
 }
 
+/** Стратегия входа в окне закрытия: сохраняется сама, как только ушла из поля (окно не закрывается). */
+function bindEntryStrat(parts) {
+  const inp = $('xEntry'), start = inp.value.trim();
+  let saved = start;
+  inp.addEventListener('change', () => {
+    const v = inp.value.trim();
+    if (!v || v === saved) return;
+    saved = v;
+    quietSave(parts.map(p => ['edit', { id: p.id, strategy: v }]), 'Стратегия входа сохранена');
+  });
+}
+/** Отправить в журнал в фоне, не закрывая окно. */
+function quietSave(steps, msg) {
+  const backup = JSON.stringify(S.data);
+  steps.forEach(([a, d]) => optimistic(a, d));
+  render(); toast(msg || 'Сохраняю…');
+  queue.push({ steps, backup }); drain();
+}
+
 /** Как изменение выглядит на экране сразу, ещё до ответа журнала. */
 function optimistic(action, d) {
   const D = S.data, id = String(d.id);
@@ -785,7 +812,7 @@ function optimistic(action, d) {
   if (action === 'editOrder') D.orders = D.orders.map(o => String(o.id) !== id ? o : Object.assign({}, o, { entry: num(d.entry), qty: num(d.qty),
     sl: d.sl === '' ? null : num(d.sl), tp: d.tp === '' ? null : num(d.tp), strategy: d.strategy, note: d.note }));
   if (action === 'edit') D.open = D.open.map(p => String(p.id) !== id ? p : Object.assign({}, p,
-    'sl' in d ? { sl: d.sl === '' ? null : num(d.sl) } : {}, 'tp' in d ? { tp: d.tp === '' ? null : num(d.tp) } : {}));
+    'sl' in d ? { sl: d.sl === '' ? null : num(d.sl) } : {}, 'tp' in d ? { tp: d.tp === '' ? null : num(d.tp) } : {}, 'strategy' in d ? { strategy: d.strategy } : {}));
 }
 const queue = [];
 let running = false;

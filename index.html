@@ -184,19 +184,25 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
 .tab-calc header{padding:0 16px}
 
 /* лампочки-метки: объёмный шарик с бликом и цветным ореолом */
-.lamp{--lc:#3a3c42;flex:0 0 auto;width:11px;height:11px;border-radius:50%;border:0;padding:0;cursor:pointer;position:relative;
+.lamp{--lc:#3a3c42;flex:0 0 auto;width:8px;height:8px;border-radius:50%;border:0;padding:0;cursor:pointer;position:relative;
   background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95) 0 9%,var(--lc) 42%,color-mix(in srgb,var(--lc) 55%,#000) 100%);
-  box-shadow:0 0 7px 1px color-mix(in srgb,var(--lc) 65%,transparent),0 0 2px var(--lc)}
-.lamp::after{content:'';position:absolute;inset:-9px}      /* палец попадает легче */
+  box-shadow:0 0 5px 1px color-mix(in srgb,var(--lc) 60%,transparent),0 0 2px var(--lc)}
+.lamp::after{content:'';position:absolute;inset:-10px}      /* палец попадает легче */
 .lamp.off{background:radial-gradient(circle at 35% 30%,#5d5f66 0 10%,#26272b 70%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
 .lamp[data-c=red]{--lc:#ff4d4d}.lamp[data-c=orange]{--lc:#ff8a2a}.lamp[data-c=yellow]{--lc:#ffd23f}.lamp[data-c=green]{--lc:#3ee08f}
 .lamp[data-c=cyan]{--lc:#3fd6ff}.lamp[data-c=blue]{--lc:#4d7cff}.lamp[data-c=violet]{--lc:#b06bff}
-.lamp.big{width:16px;height:16px}
-.tagbar{display:flex;align-items:center;gap:11px;padding:8px 14px;border-bottom:1px solid var(--line)}
+.lamp.big{width:12px;height:12px}
+.tagbar{display:flex;align-items:center;gap:13px;padding:8px 14px;border-bottom:1px solid var(--line)}
 .tagbar .lamp{opacity:.45}.tagbar .lamp.sel{opacity:1;outline:1px solid rgba(255,255,255,.5);outline-offset:3px}
 .tagbar .all{font:600 9px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:none;border:0;padding:0;cursor:pointer}
 .tagbar .all.sel{color:var(--text)}
 .tagbar .cnt{margin-left:auto;font:10px var(--mono);color:var(--dim)}
+.tagpop{position:fixed;z-index:35;display:flex;gap:4px;padding:7px 9px;border-radius:999px;
+  background:rgba(24,25,29,.96);border:1px solid rgba(255,255,255,.09);box-shadow:0 12px 30px rgba(0,0,0,.6);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  opacity:0;transform:scale(.9);transform-origin:left center;transition:opacity .12s,transform .12s;pointer-events:none}
+.tagpop.on{opacity:1;transform:none;pointer-events:auto}
+.tagpop button{width:22px;height:22px;display:grid;place-items:center;border:0;background:none;padding:0;border-radius:50%;cursor:pointer}
+.tagpop button.cur{background:rgba(255,255,255,.08)}
 .tagopt{display:flex;align-items:center;gap:12px;padding:11px 4px;border-top:1px solid var(--line);cursor:pointer}
 .tagopt:first-child{border-top:0}
 .tagopt b{font:500 13px var(--sans)}.tagopt span{font:12px var(--sans);color:var(--muted)}
@@ -210,12 +216,8 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
   background:conic-gradient(from var(--ang),transparent 0 50%,rgba(255,140,60,.25) 60%,#ff9a4a 72%,#fff 78%,#ff9a4a 84%,transparent 96%);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
   animation:needSpin 7s linear infinite}
-.needw.need::after{content:'';position:absolute;inset:-12px;border-radius:22px;pointer-events:none;
-  background:radial-gradient(circle,rgba(255,170,110,.55) .8px,transparent 1.3px) 0 0/6px 6px;
-  -webkit-mask:conic-gradient(from var(--ang),transparent 0 48%,#000 70%,#000 80%,transparent 98%);mask:conic-gradient(from var(--ang),transparent 0 48%,#000 70%,#000 80%,transparent 98%);
-  filter:blur(.3px);opacity:.75;animation:needSpin 7s linear infinite}
 .needw.need input{box-shadow:var(--inset),0 0 18px rgba(255,140,60,.18)}
-.nostrat{font:600 8px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:#ffb27a;border:1px dashed rgba(255,160,90,.45);border-radius:999px;padding:1px 6px}
+.nostrat{font:600 8px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:#a9abb1;border:1px dashed rgba(255,255,255,.22);border-radius:999px;padding:1px 6px}
 .swt{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--text);margin-top:12px;cursor:pointer}
 .swt input{width:40px;height:22px;appearance:none;-webkit-appearance:none;border-radius:999px;background:var(--well);box-shadow:var(--inset);position:relative;cursor:pointer;flex:0 0 auto;border:0;padding:0}
 .swt input::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#5d5f66;transition:all .2s}
@@ -292,8 +294,7 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
       <div class="fr"><div><textarea id="stStrat" rows="4" style="font-size:14px"></textarea></div></div>
       <label class="f">Стратегии выхода · по одной в строке</label>
       <div class="fr"><div><textarea id="stExit" rows="4" style="font-size:14px"></textarea></div></div>
-      <label class="f">Метки · что значит каждый цвет</label>
-      <div id="stTags" style="margin-bottom:10px"></div>
+
       <button class="btn primary wide" id="stGo">Сохранить</button>
       <div class="msg" id="stMsg" style="min-height:0"></div>
     </div>
@@ -316,7 +317,7 @@ nav button .dot{position:absolute;top:5px;left:calc(50% + 8px);width:5px;height:
     <div class="sect"><h2>Последние события</h2><span>все устройства</span></div>
     <div class="panel" id="logList"></div>
 
-    <div class="sect"><h2>Тема</h2><span>версия 28.10 · 11</span></div>
+    <div class="sect"><h2>Тема</h2><span>версия 28.10 · 12</span></div>
     <div class="panel pad">
       <div class="seg" id="theme" style="margin:0"><button data-t="mono">Монохром</button><button data-t="emerald">Приглушённая</button><button data-t="neon">Неон</button></div>
       <label class="swt"><span>Подсвечивать пустую стратегию</span><input type="checkbox" id="hlSw"></label>
@@ -992,9 +993,9 @@ function tagBar(view, items) {
   if (used.size < 2 && !S.tf[view] && !items.some(x => x.tag)) return '';      // меток нет — полоску не показываем
   const f = S.tf[view];
   return `<div class="tagbar" data-tb="${view}"><button class="all${f ? '' : ' sel'}" data-f="">все</button>` +
-    TAGC.filter(c => used.has(c)).map(c => lamp(c, `data-f="${c}" title="${esc(tagInfo(c).name || tagInfo(c).color)}"`).replace('class="lamp', `class="lamp${f === c ? ' sel' : ''}`)).join('') +
-    (used.has('none') ? lamp('', 'data-f="none" title="без метки"').replace('class="lamp', `class="lamp${f === 'none' ? ' sel' : ''}`) : '') +
-    `<span class="cnt">${f ? esc(f === 'none' ? 'без метки' : (tagInfo(f).name || tagInfo(f).color)) : ''}</span></div>`;
+    TAGC.filter(c => used.has(c)).map(c => lamp(c, `data-f="${c}"`).replace('class="lamp', `class="lamp${f === c ? ' sel' : ''}`)).join('') +
+    (used.has('none') ? lamp('', 'data-f="none"').replace('class="lamp', `class="lamp${f === 'none' ? ' sel' : ''}`) : '') +
+    '</div>';
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-tb] [data-f]'); if (!b) return;
@@ -1003,16 +1004,21 @@ document.addEventListener('click', e => {
   S.tf[view] = S.tf[view] === f ? '' : f;
   if (view === 'hist') renderHist(); else render();
 }, true);
-/** Выбор цвета: kind — orders/open/closed, ids — номера сделок (у позиции из нескольких — все). */
-function tagSheet(kind, ids, cur, title) {
-  openSheet(`
-    <h3>Метка</h3><div class="sub">${esc(title || '')}</div>
-    <div id="tagOpts">${TAGC.map(c => { const t = tagInfo(c); return `<div class="tagopt${c === cur ? ' cur' : ''}" data-t="${c}">${lamp(c, '', true)}<b>${esc(t.color)}</b><span>${esc(t.name || '')}</span></div>`; }).join('')}
-      <div class="tagopt${!cur ? ' cur' : ''}" data-t="">${lamp('', '', true)}<b>Без метки</b></div></div>
-    <div class="quiet" style="margin-top:10px">что значит каждый цвет — в ⚙ → «Метки»</div>`);
-  $('tagOpts').onclick = e => { const o = e.target.closest('[data-t]'); if (!o) return;
-    runSteps(null, [['tag', { kind, ids, tag: o.dataset.t }]]); };
+/** Выбор цвета: маленькая плашка прямо у шарика, 7 цветов + «без метки», без подписей. */
+function tagPop(el, kind, ids, cur) {
+  let pop = $('tagPop');
+  if (!pop) { pop = document.createElement('div'); pop.id = 'tagPop'; pop.className = 'tagpop'; document.body.appendChild(pop); }
+  pop.innerHTML = TAGC.concat(['']).map(c => `<button data-t="${c}" class="${c === cur ? 'cur' : ''}">${lamp(c, '', true).replace('<button', '<span').replace('</button>', '</span>')}</button>`).join('');
+  const rc = el.getBoundingClientRect(), W = 8 * 22 + 7 * 4 + 18, H = 22 + 14;
+  pop.style.left = Math.min(rc.right + 10, innerWidth - W - 6) + 'px';
+  pop.style.top = Math.max(6, Math.min(rc.top + rc.height / 2 - H / 2, innerHeight - H - 6)) + 'px';
+  pop.classList.add('on');
+  pop.onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; e.stopPropagation(); hidePop();
+    if (b.dataset.t !== cur) runSteps(null, [['tag', { kind, ids, tag: b.dataset.t }]]); };
 }
+function hidePop() { const p = $('tagPop'); if (p) p.classList.remove('on'); }
+document.addEventListener('click', e => { if (!e.target.closest('#tagPop') && !e.target.closest('.lamp[data-tag]')) hidePop(); });
+addEventListener('scroll', hidePop, true);
 
 // ------------------------------------------------------------------ подсветка пустой стратегии
 const hlOn = () => store.get('journal.hl', true);
@@ -1077,7 +1083,7 @@ function renderStats() {
   $('byExit').innerHTML = ex2.length ? rowsTbl(ex2) : '<tr><td class="muted">нет сделок</td></tr>';
   const tg = by(T.filter(t => t.tag), t => t.tag).sort((x, y) => y[1].pnl - x[1].pnl);
   $('byTagH').classList.toggle('hidden', !tg.length); $('byTagP').classList.toggle('hidden', !tg.length);
-  $('byTag').innerHTML = tg.map(([k, v]) => `<tr><td>${lamp(k).replace('<button', '<span').replace('</button>', '</span>')} &nbsp;${esc(tagInfo(k).name || tagInfo(k).color)}</td><td class="muted">${v.n}</td><td class="muted">${pct(v.w / v.n)}</td><td class="${cls(v.pnl)}">${rub(v.pnl, true)}</td></tr>`).join('');
+  $('byTag').innerHTML = tg.map(([k, v]) => `<tr><td>${lamp(k).replace('<button', '<span').replace('</button>', '</span>')} </td><td class="muted">${v.n}</td><td class="muted">${pct(v.w / v.n)}</td><td class="${cls(v.pnl)}">${rub(v.pnl, true)}</td></tr>`).join('');
   const tk = by(T, t => t.ticker).sort((x, y) => y[1].pnl - x[1].pnl);
   const tkShow = tk.length > 8 ? tk.slice(0, 4).concat([null], tk.slice(-4)) : tk;
   $('byTicker').innerHTML = tkShow.length ? tkShow.map(x => x ? rowsTbl([x]) : '<tr><td class="muted">…</td><td></td><td></td><td></td></tr>').join('') : '<tr><td class="muted">нет сделок</td></tr>';
@@ -1159,7 +1165,7 @@ function fillSettings() {
   Object.entries(ST_IDS).forEach(([k, id]) => { $(id).value = PCT.includes(k) ? pctStr(st[k]) : (st[k] ?? ''); });
   $('stStrat').value = (S.data.strategies || []).join('\n');
   $('stExit').value = (S.data.exitStrategies || []).join('\n');
-  $('stTags').innerHTML = (S.data.tags || []).map((t, i) => `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">${lamp(t.code, '', true)}<input id="stTag${i}" value="${esc(t.name || '')}" placeholder="${esc(t.color)}" style="height:34px;font:14px var(--sans)"></div>`).join('');
+
   $('impTo').textContent = S.data.importedTo ? 'загружено до ' + dd(S.data.importedTo) : '';
   const kinds = [...new Set((S.data.expenses || []).map(e => e.kind).filter(Boolean))].sort();
   $('exKinds').innerHTML = kinds.map(k => `<option value="${esc(k)}">`).join('');
@@ -1178,11 +1184,10 @@ $('stGo').onclick = async () => {
   }
   const strategies = $('stStrat').value.split('\n').map(x => x.trim()).filter(Boolean);
   const exitStrategies = $('stExit').value.split('\n').map(x => x.trim()).filter(Boolean);
-  const tagNames = (S.data.tags || []).map((t, i) => $('stTag' + i).value.trim());
-  S.data.exitStrategies = exitStrategies; (S.data.tags || []).forEach((t, i) => { t.name = tagNames[i]; });
+  S.data.exitStrategies = exitStrategies;
   Object.assign(S.data.settings, s); S.data.strategies = strategies; render();       // сразу на экране
   msgTo('stMsg', 'Сохраняю…', 'muted'); $('stGo').disabled = true;
-  const j = await apiPost('settings', { settings: s, strategies, exitStrategies, tagNames });
+  const j = await apiPost('settings', { settings: s, strategies, exitStrategies });
   $('stGo').disabled = false;
   msgTo('stMsg', j.ok ? '✓ Сохранено в журнал' : '✗ ' + j.error, j.ok ? 'pos' : 'neg');
 };
@@ -1241,8 +1246,8 @@ document.addEventListener('click', e => {
   const l = e.target.closest('.lamp[data-tag]'); if (!l) return;
   e.stopPropagation();
   const kind = l.dataset.tag, ids = l.dataset.ids.split(',');
-  const row = l.closest('.row'), title = row ? row.querySelector('.tk').textContent : '';
-  tagSheet(kind, ids, l.dataset.c || '', title);
+  const p = $('tagPop'); if (p && p.classList.contains('on') && p._for === l) return hidePop();
+  tagPop(l, kind, ids, l.dataset.c || ''); $('tagPop')._for = l;
 }, true);
 $('openList').onclick = e => {
   const c = e.target.closest('[data-g]'); if (!c) return;
